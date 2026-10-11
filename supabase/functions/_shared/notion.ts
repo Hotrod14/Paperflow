@@ -1,0 +1,87 @@
+// Cliente mínimo de la API de Notion. El token nunca sale de aquí.
+//
+// Secrets:
+//   NOTION_TOKEN                 token de la integración interna
+//   NOTION_DS_AUDITORIAS         data source "Auditorías"
+//   NOTION_DS_PENDIENTES         data source "Pendientes"
+//   NOTION_DB_AUDITORIAS / NOTION_DB_PENDIENTES   bases que los contienen
+//   NOTION_VERSION (opcional)    por defecto 2025-09-03 (API de data sources)
+
+import { ErrorHttp } from './respuesta.ts'
+
+const TOKEN = Deno.env.get('NOTION_TOKEN') ?? ''
+const VERSION = Deno.env.get('NOTION_VERSION') ?? '2025-09-03'
+export const DS_AUDITORIAS = Deno.env.get('NOTION_DS_AUDITORIAS') ?? 'c1c04c08-f1f0-45d7-b313-6df22152c8f7'
+export const DS_PENDIENTES = Deno.env.get('NOTION_DS_PENDIENTES') ?? '7ee6b1c6-1c7a-401f-baf5-9b4aaf1594c4'
+// Bases que contienen esos data sources (para validar el padre de una página).
+export const DB_AUDITORIAS = Deno.env.get('NOTION_DB_AUDITORIAS') ?? 'c19ec3ae68b14e2e9342afb373f5e5d3'
+export const DB_PENDIENTES = Deno.env.get('NOTION_DB_PENDIENTES') ?? 'df3a9d5b94864ca0b4086fe272581e47'
+
+const sinGuiones = (id: string) => id.replace(/-/g, '').toLowerCase()
+
+async function notion(ruta: string, init: RequestInit = {}, intento = 0): Promise<unknown> {
+  if (!TOKEN) throw new ErrorHttp('Falta configurar NOTION_TOKEN', 500)
+  const res = await fetch(`https://api.notion.com/v1${ruta}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      'Notion-Version': VERSION,
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {}),
+    },
+  })
+  // Límite de velocidad de Notion: reintenta respetando Retry-After (máx. 2 veces).
+  if (res.status === 429 && intento < 2) {
+    const espera = Number(res.headers.get('Retry-After') ?? '1')
+    await new Promise((r) => setTimeout(r, Math.min(espera, 5) * 1000))
+    return notion(ruta, init, intento + 1)
+  }
+  if (!res.ok) {
+    const cuerpo = await res.text()
+    console.error(`Notion ${res.status} ${ruta}: ${cuerpo.slice(0, 300)}`)
+    if (res.status === 404) throw new ErrorHttp('No encontrado en Notion (¿la integración tiene acceso?)', 404)
+    throw new ErrorHttp('Notion no respondió correctamente', 502)
+  }
+  return res.json()
+}
+
+// deno-lint-ignore no-explicit-any
+type Pagina = any
+
+/** Lee todas las páginas de un data source, paginando. */
+export async function consultarTodo(dataSourceId: string, filtro?: unknown): Promise<Pagina[]> {
+  const paginas: Pagina[] = []
+  let cursor: string | undefined
+  for (let vuelta = 0; vuelta < 20; vuelta++) {
+    // deno-lint-ignore no-explicit-any
+    const cuerpo: Record<string, any> = { page_size: 100 }
+    if (filtro) cuerpo.filter = filtro
+    if (cursor) cuerpo.start_cursor = cursor
+    // deno-lint-ignore no-explicit-any
+    const res: any = await notion(`/data_sources/${dataSourceId}/query`, { method: 'POST', body: JSON.stringify(cuerpo) })
+    // deno-lint-ignore no-explicit-any
+    paginas.push(...res.results.filter((p: any) => p.object === 'page' && p.properties))
+    if (!res.has_more || !res.next_cursor) break
+    cursor = res.next_cursor
+  }
+  return paginas
+}
+
+/**
+ * Actualiza una página SOLO si pertenece al data source esperado.
+ * Evita que la API se use para editar cualquier otra página del workspace.
+ */
+export async function actualizarPagina(
+  pageId: string,
+  esperado: { dataSource: string; database: string },
+  propiedades: unknown,
+) {
+  // deno-lint-ignore no-explicit-any
+  const pagina: any = await notion(`/pages/${pageId}`)
+  const padre = pagina?.parent ?? {}
+  const coincide =
+    (padre.data_source_id && sinGuiones(padre.data_source_id) === sinGuiones(esperado.dataSource)) ||
+    (padre.database_id && sinGuiones(padre.database_id) === sinGuiones(esperado.database))
+  if (!coincide) throw new ErrorHttp('La página no pertenece a Paperflow', 403)
+  return notion(`/pages/${pageId}`, { method: 'PATCH', body: JSON.stringify({ properties: propiedades }) })
+}

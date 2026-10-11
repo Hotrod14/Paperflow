@@ -1,0 +1,9 @@
+project_id = "paperflow"
+
+# Exige el JWT de Supabase; además la función valida ALLOWED_EMAIL.
+[functions.paperflow]
+verify_jwt = true
+
+[auth]
+# Un solo usuario: nadie puede registrarse desde la app.
+enable_signup = false
