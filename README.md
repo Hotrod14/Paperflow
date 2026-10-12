@@ -44,16 +44,20 @@ Notion · bases "Auditorías" y "Pendientes"
 2. *Authentication → Providers → Email*: deja activo el enlace mágico.
 3. *Authentication → Sign In / Providers*: desactiva **Allow new users to sign up**.
 4. *Authentication → Users → Add user*: crea tu usuario con tu correo.
-5. Sube los secretos de la función:
+5. *Edge Functions → Secrets*: agrega los secretos desde el panel (así el token no queda en el historial de la terminal):
+   - `NOTION_TOKEN` = el token de Notion
+   - `ALLOWED_EMAIL` = tu correo
+   - `ALLOWED_ORIGINS` = `http://localhost:5173` (se suma la URL de Vercel en el paso 3)
+6. Despliega la función desde tu computador:
 
 ```bash
-supabase link --project-ref <ref>
-supabase secrets set \
-  NOTION_TOKEN=ntn_xxx \
-  ALLOWED_EMAIL=tu@correo.cl \
-  ALLOWED_ORIGINS=https://paperflow.vercel.app,http://localhost:5173
-supabase functions deploy paperflow
+git clone https://github.com/Hotrod14/Paperflow.git && cd Paperflow
+npx supabase login
+npx supabase link --project-ref <ref>
+npx supabase functions deploy paperflow
 ```
+
+La función valida la sesión ella misma (`verify_jwt = false` en `config.toml`), así que funciona con las claves nuevas y las antiguas de Supabase.
 
 Variables opcionales, ya tienen valor por defecto:
 
