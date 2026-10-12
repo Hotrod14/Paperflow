@@ -35,8 +35,8 @@ Notion · bases "Auditorías" y "Pendientes"
 1. Crea una integración interna en <https://www.notion.so/profile/integrations>.
    - Capacidades: leer contenido y actualizar contenido. No hace falta insertar.
 2. Copia el token (`ntn_…`) a tu gestor de contraseñas. Nunca lo pegues en una página de Notion.
-3. En la página **Paperflow**, abre `···` → *Conexiones* y agrega la integración.
-   - Así quedan compartidas las dos bases.
+3. En la página **Paperflow — Auditorías y pendientes** (en *Journal*), abre `···` → *Conexiones* y agrega la integración.
+   - Esa página contiene las dos bases; así quedan compartidas ambas.
 
 ### 2. Supabase
 
