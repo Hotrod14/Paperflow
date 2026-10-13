@@ -13,6 +13,7 @@ import { NuevaTarea, type DatosNuevaTarea } from './components/NuevaTarea.tsx'
 import type { AccionesTarjeta } from './components/Tarjeta.tsx'
 import { SelectorTema } from './components/SelectorTema.tsx'
 import { useTema, type Tema } from './lib/tema.ts'
+import { Analytics } from '@vercel/analytics/react'
 
 type Ruta = 'hoy' | 'semana'
 const REFRESCO_MS = 3 * 60 * 1000
@@ -39,10 +40,18 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
 
-  if (!configurado) return <SinConfigurar />
-  if (sesion === undefined) return <div className="mesa" aria-busy="true" />
-  if (!sesion) return <Login tema={tema} onCambiarTema={setTema} />
-  return <Escritorio correo={sesion.user.email ?? ''} tema={tema} onCambiarTema={setTema} />
+  let contenido
+  if (!configurado) contenido = <SinConfigurar />
+  else if (sesion === undefined) contenido = <div className="mesa" aria-busy="true" />
+  else if (!sesion) contenido = <Login tema={tema} onCambiarTema={setTema} />
+  else contenido = <Escritorio correo={sesion.user.email ?? ''} tema={tema} onCambiarTema={setTema} />
+
+  return (
+    <>
+      {contenido}
+      <Analytics />
+    </>
+  )
 }
 
 function SinConfigurar() {
