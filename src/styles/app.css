@@ -30,8 +30,9 @@
   color-scheme: light;
 }
 
+/* Oscuro: sigue al sistema salvo que se elija claro; o se fuerza con data-tema. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema='claro']) {
     --mesa: #1b1e19;
     --papel: #2a2923;
     --cinta: #3a3424;
@@ -51,6 +52,26 @@
     --en-hoy: #45402f;
     color-scheme: dark;
   }
+}
+:root[data-tema='oscuro'] {
+  --mesa: #1b1e19;
+  --papel: #2a2923;
+  --cinta: #3a3424;
+  --ticket: #263024;
+  --linea: #36342c;
+  --linea-2: #5a564a;
+  --tinta: #eee8da;
+  --tinta-2: #c1baa8;
+  --critico: #e8957a;
+  --secundario: #e6bd62;
+  --azul: #a9c1eb;
+  --sombra: rgba(0, 0, 0, 0.5);
+  --fibra: rgba(255, 245, 220, 0.03);
+  --fibra-2: rgba(255, 245, 220, 0.02);
+  --hoja-verde: #56634a;
+  --quieto: #3a372e;
+  --en-hoy: #45402f;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -196,10 +217,21 @@ a { color: var(--azul); }
 
 /* ---------- Celular ---------- */
 .nav-movil { display: none; }
+/* Selector de tema */
+.tema { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px 16px 13px 15px; background: var(--papel); border: 1.4px solid var(--linea-2); }
+.tema button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 1.4px solid transparent; border-radius: var(--a-mano); background: transparent; color: var(--tinta-2); font-family: var(--manuscrita); font-size: 19px; cursor: pointer; }
+.tema button[aria-pressed='true'] { color: var(--tinta); border-color: var(--azul); background: var(--quieto); }
+.tema button:hover { color: var(--tinta); }
+.tema svg { width: 18px; height: 18px; flex: none; }
+.tema--compacto button { padding: 0 8px; min-width: 40px; justify-content: center; }
+.tema--compacto .tema__texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 720px) {
   .marco { padding: 16px 14px 96px; gap: 18px; }
   .nav-movil { display: flex; flex-basis: 100%; align-items: center; gap: 4px; }
-  .nav-movil .marca { margin-right: auto; }
+  .nav-movil .marca { margin-right: auto; font-size: 26px !important; }
+  .nav-movil { flex-wrap: wrap; row-gap: 6px; }
+  .nav-movil .nav-link { padding: 2px 9px; font-size: 21px; }
+  .nav-movil .tema button { min-width: 36px; padding: 0 6px; min-height: 34px; }
   .columna-nav { order: 3; }
   .columna-lateral { order: 2; }
   .ramita { display: none; }

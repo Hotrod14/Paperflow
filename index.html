@@ -13,6 +13,13 @@
       href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Courier+Prime:wght@400;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap"
     />
     <title>Paperflow</title>
+      <script>
+      // Aplica el tema guardado antes de pintar, para evitar un parpadeo.
+      try {
+        var t = localStorage.getItem('paperflow:tema')
+        if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.tema = t
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

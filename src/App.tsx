@@ -10,6 +10,8 @@ import { Hoy } from './components/Hoy.tsx'
 import { Semana } from './components/Semana.tsx'
 import { HojaDetalle } from './components/HojaDetalle.tsx'
 import type { AccionesTarjeta } from './components/Tarjeta.tsx'
+import { SelectorTema } from './components/SelectorTema.tsx'
+import { useTema, type Tema } from './lib/tema.ts'
 
 type Ruta = 'hoy' | 'semana'
 const REFRESCO_MS = 3 * 60 * 1000
@@ -26,6 +28,7 @@ interface Aviso {
 }
 
 export default function App() {
+  const [tema, setTema] = useTema()
   const [sesion, setSesion] = useState<Session | null | undefined>(undefined)
 
   useEffect(() => {
@@ -37,8 +40,8 @@ export default function App() {
 
   if (!configurado) return <SinConfigurar />
   if (sesion === undefined) return <div className="mesa" aria-busy="true" />
-  if (!sesion) return <Login />
-  return <Escritorio correo={sesion.user.email ?? ''} />
+  if (!sesion) return <Login tema={tema} onCambiarTema={setTema} />
+  return <Escritorio correo={sesion.user.email ?? ''} tema={tema} onCambiarTema={setTema} />
 }
 
 function SinConfigurar() {
@@ -56,7 +59,7 @@ function SinConfigurar() {
   )
 }
 
-function Escritorio({ correo }: { correo: string }) {
+function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tema; onCambiarTema: (t: Tema) => void }) {
   const [ruta, setRuta] = useState<Ruta>(rutaActual)
   const [ambito, setAmbito] = useState<Ambito>('Trabajo')
   const [datos, setDatos] = useState<Datos | null>(() => leerCopia())
@@ -203,6 +206,7 @@ function Escritorio({ correo }: { correo: string }) {
           <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined}>
             semana
           </a>
+          <SelectorTema tema={tema} onCambiar={onCambiarTema} compacto />
         </nav>
         <div className="columna-nav">
           <Papel as="nav" variante="rayado" borde="a" girar={-0.6} aria-label="Principal">
@@ -229,6 +233,7 @@ function Escritorio({ correo }: { correo: string }) {
                   ))}
                 </div>
               )}
+              <SelectorTema tema={tema} onCambiar={onCambiarTema} />
               <div className="datos" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span aria-live="polite">
                   {cargando ? 'leyendo Notion…' : datos ? `notion leído ${haceCuanto(datos.leidoEn, ahora)}` : 'sin datos aún'}
