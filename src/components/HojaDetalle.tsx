@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Auditoria, Pendiente } from '../lib/tipos.ts'
+import { esSueltas } from '../lib/vista.ts'
 
 /** Detalle de un pendiente: se abre al costado sin salir de "Hoy". */
 export function HojaDetalle({
@@ -65,7 +66,13 @@ export function HojaDetalle({
           {p.titulo}
         </h2>
         <div className="fila__meta">
-          {p.tipo === 'Crítico' ? <span className="tag-critico">crítico</span> : <span className="tag-secundario">secundario</span>}
+          {esSueltas(auditoria) ? (
+            <span className="datos">tarea suelta</span>
+          ) : p.tipo === 'Crítico' ? (
+            <span className="tag-critico">crítico</span>
+          ) : (
+            <span className="tag-secundario">secundario</span>
+          )}
           {p.categoria && <span className="datos">{p.categoria.toLowerCase()}</span>}
           {p.estado && <span className="datos">· {p.estado.toLowerCase()}</span>}
         </div>

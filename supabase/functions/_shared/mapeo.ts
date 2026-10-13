@@ -210,3 +210,40 @@ export function propiedadesAuditoria(cambios: Record<string, unknown>): Record<s
   if (!('estado' in cambios)) throw new ErrorCambios('Sin cambios')
   return { [PROP.aud.estado]: { select: { name: validarOpcion(cambios.estado, ESTADOS_AUDITORIA, 'estado') } } }
 }
+
+// ---------------------------------------------------------------- Tareas sueltas
+
+/** Nombre del "origen" que agrupa las tareas espontáneas de cada proyecto. */
+export const NOMBRE_SUELTAS = 'Tareas sueltas'
+
+export interface NuevaTarea {
+  titulo: string
+  origenId: string
+  nota?: string
+  enFoco?: string | null
+}
+
+/** Propiedades de una tarea suelta nueva. Solo título, origen, nota y "para hoy". */
+// deno-lint-ignore no-explicit-any
+export function propiedadesNuevaTarea(n: Record<string, unknown>): Record<string, any> {
+  const permitidos = ['titulo', 'origenId', 'nota', 'enFoco']
+  const extra = Object.keys(n).filter((k) => !permitidos.includes(k))
+  if (extra.length) throw new ErrorCambios(`Campos no permitidos: ${extra.join(', ')}`)
+  const titulo = typeof n.titulo === 'string' ? n.titulo.trim() : ''
+  if (!titulo || titulo.length > 200) throw new ErrorCambios('titulo: texto de 1 a 200 caracteres')
+  if (typeof n.origenId !== 'string' || !n.origenId) throw new ErrorCambios('origenId requerido')
+  const nota = n.nota === undefined ? '' : n.nota
+  if (typeof nota !== 'string' || nota.length > 500) throw new ErrorCambios('nota: texto de hasta 500 caracteres')
+  const enFoco = n.enFoco === undefined ? null : validarFecha(n.enFoco, 'enFoco')
+
+  // deno-lint-ignore no-explicit-any
+  const props: Record<string, any> = {
+    [PROP.pen.titulo]: { title: [{ text: { content: titulo } }] },
+    [PROP.pen.origen]: { relation: [{ id: n.origenId }] },
+    [PROP.pen.estado]: { select: { name: 'Abierto' } },
+    [PROP.pen.categoria]: { select: { name: 'Hacer ya' } },
+  }
+  if (nota.trim()) props[PROP.pen.nota] = { rich_text: [{ text: { content: nota.trim() } }] }
+  if (enFoco) props[PROP.pen.enFoco] = { date: { start: enFoco } }
+  return props
+}

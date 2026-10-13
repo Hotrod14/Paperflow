@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Ambito, CambiosPendiente, Datos, Pendiente } from './lib/tipos.ts'
-import { actualizarAuditoria, actualizarPendiente, configurado, guardarCopia, leer, leerCopia, supabase } from './lib/api.ts'
-import { auditoriaDe, construirHoy, construirSemana } from './lib/vista.ts'
+import { actualizarAuditoria, actualizarPendiente, configurado, crearTarea, guardarCopia, leer, leerCopia, supabase } from './lib/api.ts'
+import { auditoriaDe, construirHoy, construirSemana, origenesSueltos } from './lib/vista.ts'
 import { fechaLocal, haceCuanto } from './lib/fechas.ts'
 import { Papel, Ramita } from './components/Papel.tsx'
 import { Login } from './components/Login.tsx'
 import { Hoy } from './components/Hoy.tsx'
 import { Semana } from './components/Semana.tsx'
 import { HojaDetalle } from './components/HojaDetalle.tsx'
+import { NuevaTarea, type DatosNuevaTarea } from './components/NuevaTarea.tsx'
 import type { AccionesTarjeta } from './components/Tarjeta.tsx'
 import { SelectorTema } from './components/SelectorTema.tsx'
 import { useTema, type Tema } from './lib/tema.ts'
@@ -67,6 +68,7 @@ function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tem
   const [cargando, setCargando] = useState(false)
   const [falloLectura, setFalloLectura] = useState<string | null>(null)
   const [detalleId, setDetalleId] = useState<string | null>(null)
+  const [creando, setCreando] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
   const [, setTic] = useState(0)
   const temporizador = useRef<number | undefined>(undefined)
@@ -176,6 +178,23 @@ function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tem
     [cambiarPendiente, mostrarAviso, reabrir, hoy, datos],
   )
 
+  // ---- Tarea suelta: se crea en Notion y se agrega a la vista con el id real.
+  const crear = useCallback(
+    async (d: DatosNuevaTarea) => {
+      const p = await crearTarea({ titulo: d.titulo, origenId: d.origenId, nota: d.nota, enFoco: d.paraHoy ? hoy : null })
+      setDatos((prev) => {
+        if (!prev) return prev
+        const sig = { ...prev, pendientes: [...prev.pendientes, p] }
+        guardarCopia(sig)
+        return sig
+      })
+      setCreando(false)
+      mostrarAviso({ texto: d.paraHoy ? `Agregada a "para hoy": ${p.titulo}` : `Agregada: ${p.titulo}` })
+    },
+    [hoy, mostrarAviso],
+  )
+  const cerrarCreando = useCallback(() => setCreando(false), [])
+
   // ---- Vistas
   const ahora = new Date()
   const vistaHoy = useMemo(() => (datos ? construirHoy(datos, ambito, hoy) : null), [datos, ambito, hoy])
@@ -277,7 +296,9 @@ function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tem
         ) : ruta === 'semana' && vistaSemana ? (
           <Semana vista={vistaSemana} ambito={ambito} onCambiarAmbito={setAmbito} />
         ) : (
-          vistaHoy && <Hoy vista={vistaHoy} ambito={ambito} onCambiarAmbito={setAmbito} acciones={acciones} onDesmarcar={reabrir} />
+          vistaHoy && (
+            <Hoy vista={vistaHoy} ambito={ambito} onCambiarAmbito={setAmbito} acciones={acciones} onDesmarcar={reabrir} onNuevaTarea={() => setCreando(true)} />
+          )
         )}
       </div>
 
@@ -295,6 +316,10 @@ function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tem
             setDetalleId(null)
           }}
         />
+      )}
+
+      {creando && datos && vistaHoy && (
+        <NuevaTarea origenes={origenesSueltos(datos, ambito)} hayCupoHoy={!vistaHoy.lleno} onCrear={crear} onCerrar={cerrarCreando} />
       )}
 
       {aviso && (

@@ -22,12 +22,14 @@ export function Hoy({
   onCambiarAmbito,
   acciones,
   onDesmarcar,
+  onNuevaTarea,
 }: {
   vista: VistaHoy
   ambito: Ambito
   onCambiarAmbito: (a: Ambito) => void
   acciones: AccionesTarjeta
   onDesmarcar: (p: Pendiente) => void
+  onNuevaTarea: () => void
 }) {
   const r = vista.resumen
   const huecos = Math.max(0, MAX_PARA_HOY - vista.abiertosEnHoy)
@@ -44,9 +46,15 @@ export function Hoy({
             <h1 className="titulo-pagina">¿qué tengo hoy?</h1>
             <span className="suave" style={{ fontSize: 17 }}>
               {r.auditorias} {r.auditorias === 1 ? 'auditoría abierta' : 'auditorías abiertas'} · {r.criticos} críticos · {r.secundarios} secundarios
+              {r.sueltas > 0 && ` · ${r.sueltas} ${r.sueltas === 1 ? 'tarea suelta' : 'tareas sueltas'}`}
             </span>
           </div>
-          <SelectorAmbito ambito={ambito} onCambiar={onCambiarAmbito} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+            <button type="button" className="btn-mano btn-nueva" onClick={onNuevaTarea}>
+              + tarea suelta
+            </button>
+            <SelectorAmbito ambito={ambito} onCambiar={onCambiarAmbito} />
+          </div>
         </div>
 
         <Papel as="section" variante="cinta" borde="cinta" className="para-hoy__hoja" aria-labelledby="parahoy-t" girar={-0.35}>
@@ -130,6 +138,7 @@ export function Hoy({
               ['auditorías abiertas', r.auditorias],
               ['críticos', r.criticos],
               ['secundarios', r.secundarios],
+              ['tareas sueltas', r.sueltas],
               ['esperando a otros', r.espera],
               ['quietos +2 semanas', r.quietos],
             ].map(([k, v]) => (

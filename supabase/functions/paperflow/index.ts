@@ -5,6 +5,8 @@
 //       → auditorías + pendientes abiertos + cerrados en los últimos 35 días
 //   { accion: "actualizarPendiente", id, cambios }
 //   { accion: "actualizarAuditoria", id, cambios }
+//   { accion: "crearTarea", nueva: { titulo, origenId, nota?, enFoco? } }
+//       → crea una tarea suelta; el origen debe ser un "Tareas sueltas"
 //
 // No guarda datos propios: solo una caché en memoria de 45 s por
 // instancia, que se invalida en cada escritura.
@@ -14,6 +16,8 @@ import { ErrorHttp, errorARespuesta, json, preflight } from '../_shared/respuest
 import {
   actualizarPagina,
   consultarTodo,
+  crearPagina,
+  paginaDe,
   DB_AUDITORIAS,
   DB_PENDIENTES,
   DS_AUDITORIAS,
@@ -23,7 +27,9 @@ import {
   aAuditoria,
   aPendiente,
   ErrorCambios,
+  NOMBRE_SUELTAS,
   PROP,
+  propiedadesNuevaTarea,
   propiedadesAuditoria,
   propiedadesPendiente,
 } from '../_shared/mapeo.ts'
@@ -89,6 +95,26 @@ Deno.serve(async (req) => {
       await actualizarPagina(body.id, esperado, props)
       cache = null
       return json(req, { ok: true })
+    }
+
+    if (body?.accion === 'crearTarea') {
+      const nueva = body.nueva
+      if (!nueva || typeof nueva !== 'object') throw new ErrorHttp('nueva inválida')
+      if (typeof nueva.origenId !== 'string' || !ID_RE.test(nueva.origenId)) throw new ErrorHttp('origen inválido')
+      let props
+      try {
+        props = propiedadesNuevaTarea(nueva)
+      } catch (e) {
+        if (e instanceof ErrorCambios) throw new ErrorHttp(e.message)
+        throw e
+      }
+      // Solo se crean tareas dentro de un origen "Tareas sueltas" de Paperflow.
+      const origen = aAuditoria(await paginaDe(nueva.origenId, { dataSource: DS_AUDITORIAS, database: DB_AUDITORIAS }))
+      if (origen.nombre !== NOMBRE_SUELTAS) throw new ErrorHttp('Solo se pueden crear tareas en "Tareas sueltas"', 403)
+      // deno-lint-ignore no-explicit-any
+      const creada: any = await crearPagina(DS_PENDIENTES, props)
+      cache = null
+      return json(req, aPendiente(creada))
     }
 
     throw new ErrorHttp('Acción desconocida')

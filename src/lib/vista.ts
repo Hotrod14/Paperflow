@@ -3,6 +3,16 @@
 
 import type { Ambito, Auditoria, Datos, Pendiente } from './tipos.ts'
 import { diasDesde, haceCuanto, sumarDias } from './fechas.ts'
+import { NOMBRE_SUELTAS } from '../../supabase/functions/_shared/mapeo.ts'
+
+export { NOMBRE_SUELTAS }
+/** "Tareas sueltas": origen por proyecto para lo espontáneo; no es una auditoría. */
+export const esSueltas = (a: Auditoria | null | undefined) => a?.nombre === NOMBRE_SUELTAS
+
+/** Orígenes donde se pueden crear tareas sueltas, para un ámbito. */
+export function origenesSueltos(datos: Datos, ambito: Ambito): Auditoria[] {
+  return datos.auditorias.filter((a) => esSueltas(a) && a.ambito === ambito).sort((x, y) => (x.proyecto ?? '').localeCompare(y.proyecto ?? ''))
+}
 
 export const MAX_PARA_HOY = 3
 export const DIAS_QUIETO = 14
@@ -27,6 +37,7 @@ export interface Fila {
 
 export interface Tarjeta {
   auditoria: Auditoria
+  sueltas: boolean
   criticos: number
   secundarios: number
   filas: Fila[]
@@ -48,7 +59,7 @@ export interface VistaHoy {
   paraHoy: ItemHoy[]
   abiertosEnHoy: number
   lleno: boolean
-  resumen: { auditorias: number; criticos: number; secundarios: number; espera: number; quietos: number }
+  resumen: { auditorias: number; criticos: number; secundarios: number; sueltas: number; espera: number; quietos: number }
 }
 
 const abierto = (p: Pendiente) => p.estado === 'Abierto'
@@ -115,8 +126,11 @@ export function construirHoy(datos: Datos, ambito: Ambito, hoy: string, ahora: D
     const criticos = abiertos.filter(esCritico).length
     const secundarios = abiertos.length - criticos
 
+    const sueltas = esSueltas(a)
     let sugerencia: Tarjeta['sugerencia'] = null
-    if (a.estado === 'Crítico en curso' && criticos === 0 && abiertos.length > 0) {
+    if (sueltas) {
+      // Las tareas sueltas no tienen estado de auditoría que sugerir.
+    } else if (a.estado === 'Crítico en curso' && criticos === 0 && abiertos.length > 0) {
       sugerencia = { estado: 'Crítico ejecutado', texto: 'No quedan críticos abiertos: ¿marcar "crítico ejecutado"?' }
     } else if ((a.estado === 'Crítico en curso' || a.estado === 'Crítico ejecutado') && abiertos.length === 0) {
       sugerencia = { estado: 'Todo ejecutado', texto: 'No quedan pendientes abiertos: ¿marcar "todo ejecutado"?' }
@@ -127,6 +141,7 @@ export function construirHoy(datos: Datos, ambito: Ambito, hoy: string, ahora: D
     const ediciones = [a.editadoEn, ...suyos.map((p) => p.editadoEn)].sort()
     tarjetas.push({
       auditoria: a,
+      sueltas,
       criticos,
       secundarios,
       filas: abiertos
@@ -143,22 +158,26 @@ export function construirHoy(datos: Datos, ambito: Ambito, hoy: string, ahora: D
       sugerencia,
     })
   }
+  // Lo espontáneo primero: suele ser lo que me pidieron hoy.
   tarjetas.sort(
     (x, y) =>
+      Number(y.sueltas) - Number(x.sueltas) ||
       (RANGO_ESTADO[x.auditoria.estado ?? ''] ?? 5) - (RANGO_ESTADO[y.auditoria.estado ?? ''] ?? 5) ||
       y.criticos - x.criticos,
   )
 
   const abiertos = pendientes.filter(abierto)
+  const esSuelta = (p: Pendiente) => esSueltas(auditoriaDe(datos, p))
   return {
     tarjetas,
     paraHoy,
     abiertosEnHoy,
     lleno: abiertosEnHoy >= MAX_PARA_HOY,
     resumen: {
-      auditorias: tarjetas.filter((t) => t.criticos + t.secundarios > 0).length,
+      auditorias: tarjetas.filter((t) => !t.sueltas && t.criticos + t.secundarios > 0).length,
       criticos: abiertos.filter(esCritico).length,
-      secundarios: abiertos.filter((p) => !esCritico(p)).length,
+      secundarios: abiertos.filter((p) => !esCritico(p) && !esSuelta(p)).length,
+      sueltas: abiertos.filter(esSuelta).length,
       espera: abiertos.filter((p) => p.categoria === ESPERA).length,
       quietos: abiertos.filter((p) => diasDesde(p.editadoEn, ahora) > DIAS_QUIETO).length,
     },
@@ -169,6 +188,7 @@ export function construirHoy(datos: Datos, ambito: Ambito, hoy: string, ahora: D
 
 export interface BloqueSemana {
   auditoria: Auditoria
+  sueltas: boolean
   cerrados: Pendiente[]
   criticos: number
   secundarios: number
@@ -195,6 +215,7 @@ export function construirSemana(datos: Datos, ambito: Ambito, hoy: string, ahora
     const quietos = abiertos.length > 0 && abiertos.every((p) => diasDesde(p.editadoEn, ahora) > DIAS_QUIETO)
     bloques.push({
       auditoria: a,
+      sueltas: esSueltas(a),
       cerrados,
       criticos: abiertos.filter(esCritico).length,
       secundarios: abiertos.filter((p) => !esCritico(p)).length,
@@ -225,15 +246,19 @@ export function guionOral(semana: VistaSemana, incluidos: Set<string>): string {
       lineas.push('✅ Sin cierres esta semana.')
     }
     const quedan: string[] = []
-    if (b.criticos) quedan.push(`${b.criticos} ${b.criticos === 1 ? 'crítico' : 'críticos'}`)
-    if (b.secundarios) quedan.push(`${b.secundarios} ${b.secundarios === 1 ? 'secundario' : 'secundarios'}`)
+    if (b.sueltas) {
+      if (b.secundarios) quedan.push(`${b.secundarios} ${b.secundarios === 1 ? 'tarea' : 'tareas'}`)
+    } else {
+      if (b.criticos) quedan.push(`${b.criticos} ${b.criticos === 1 ? 'crítico' : 'críticos'}`)
+      if (b.secundarios) quedan.push(`${b.secundarios} ${b.secundarios === 1 ? 'secundario' : 'secundarios'}`)
+    }
     lineas.push(quedan.length ? `📌 Quedan ${quedan.join(' y ')}.` : '📌 No quedan pendientes.')
     if (b.espera.length) lineas.push(`❓ Esperan decisión: ${b.espera.length}.`)
     lineas.push('')
   })
   const detenidas = semana.bloques.filter((b) => incluidos.has(b.auditoria.id) && b.detenida)
   if (detenidas.length) {
-    lineas.push(`⏸️ Detenido: ${detenidas.map((b) => b.auditoria.nombre).join(', ')}.`)
+    lineas.push(`⏸️ Detenido: ${detenidas.map((b) => (b.sueltas ? `${b.auditoria.nombre} de ${b.auditoria.proyecto ?? 'sin proyecto'}` : b.auditoria.nombre)).join(', ')}.`)
   }
   return lineas.join('\n').trim()
 }

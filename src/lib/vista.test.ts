@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { construirHoy, construirSemana, guionOral, SIN_ORIGEN_ID } from './vista.ts'
 import type { Auditoria, Datos, Pendiente } from './tipos.ts'
-import { aPendiente, propiedadesPendiente, propiedadesAuditoria } from '../../supabase/functions/_shared/mapeo.ts'
+import { aPendiente, propiedadesNuevaTarea, propiedadesPendiente, propiedadesAuditoria } from '../../supabase/functions/_shared/mapeo.ts'
 
 const AHORA = new Date('2026-10-12T12:00:00')
 const HOY = '2026-10-12'
@@ -160,5 +160,45 @@ describe('mapeo de Notion', () => {
     })
     expect(propiedadesPendiente({ enFoco: null })).toEqual({ 'En foco': { date: null } })
     expect(() => propiedadesAuditoria({ nombre: 'x' })).toThrow()
+  })
+})
+
+describe('tareas sueltas', () => {
+  const d = datos(
+    [
+      aud({ id: 'a1', nombre: 'Validaciones' }),
+      aud({ id: 's1', nombre: 'Tareas sueltas', proyecto: 'Ruta Digital', tipoOrigen: 'Bitácora', estado: null }),
+    ],
+    [
+      pen({ id: 'p1', tipo: 'Crítico' }),
+      pen({ id: 't1', origenId: 's1', tipo: null, titulo: 'Revisar links', enFoco: HOY }),
+      pen({ id: 't2', origenId: 's1', tipo: null, titulo: 'Links listos', estado: 'Hecho', fechaCierre: HOY }),
+    ],
+  )
+
+  it('van primero, sin sugerencia y contadas aparte del resumen de auditorías', () => {
+    const v = construirHoy(d, 'Trabajo', HOY, AHORA)
+    expect(v.tarjetas[0]).toMatchObject({ sueltas: true, sugerencia: null })
+    expect(v.resumen).toMatchObject({ auditorias: 1, criticos: 1, secundarios: 0, sueltas: 1 })
+    expect(v.paraHoy.map((i) => i.p.id)).toEqual(['t1'])
+  })
+
+  it('el guion habla de tareas, no de secundarios', () => {
+    const g = guionOral(construirSemana(d, 'Trabajo', HOY, AHORA), new Set(['a1', 's1']))
+    expect(g).toContain('Ruta Digital · Tareas sueltas')
+    expect(g).toContain('✅ Se cerraron 1: Links listos.')
+    expect(g).toContain('📌 Quedan 1 tarea.')
+  })
+
+  it('una tarea nueva solo acepta título, origen, nota y "para hoy"', () => {
+    expect(() => propiedadesNuevaTarea({ titulo: '', origenId: 's1' })).toThrow()
+    expect(() => propiedadesNuevaTarea({ titulo: 'x', origenId: 's1', tipo: 'Crítico' })).toThrow()
+    expect(propiedadesNuevaTarea({ titulo: ' Revisar links ', origenId: 's1', nota: '', enFoco: HOY })).toEqual({
+      Pendiente: { title: [{ text: { content: 'Revisar links' } }] },
+      Origen: { relation: [{ id: 's1' }] },
+      Estado: { select: { name: 'Abierto' } },
+      Categoría: { select: { name: 'Hacer ya' } },
+      'En foco': { date: { start: HOY } },
+    })
   })
 })

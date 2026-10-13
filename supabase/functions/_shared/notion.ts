@@ -71,11 +71,8 @@ export async function consultarTodo(dataSourceId: string, filtro?: unknown): Pro
  * Actualiza una página SOLO si pertenece al data source esperado.
  * Evita que la API se use para editar cualquier otra página del workspace.
  */
-export async function actualizarPagina(
-  pageId: string,
-  esperado: { dataSource: string; database: string },
-  propiedades: unknown,
-) {
+/** Lee una página y confirma que su padre es la base esperada de Paperflow. */
+export async function paginaDe(pageId: string, esperado: { dataSource: string; database: string }) {
   // deno-lint-ignore no-explicit-any
   const pagina: any = await notion(`/pages/${pageId}`)
   const padre = pagina?.parent ?? {}
@@ -83,5 +80,22 @@ export async function actualizarPagina(
     (padre.data_source_id && sinGuiones(padre.data_source_id) === sinGuiones(esperado.dataSource)) ||
     (padre.database_id && sinGuiones(padre.database_id) === sinGuiones(esperado.database))
   if (!coincide) throw new ErrorHttp('La página no pertenece a Paperflow', 403)
+  return pagina
+}
+
+export async function actualizarPagina(
+  pageId: string,
+  esperado: { dataSource: string; database: string },
+  propiedades: unknown,
+) {
+  await paginaDe(pageId, esperado)
   return notion(`/pages/${pageId}`, { method: 'PATCH', body: JSON.stringify({ properties: propiedades }) })
+}
+
+/** Crea una fila en un data source de Paperflow. Requiere la capacidad "Insert content". */
+export function crearPagina(dataSource: string, propiedades: unknown) {
+  return notion('/pages', {
+    method: 'POST',
+    body: JSON.stringify({ parent: { type: 'data_source_id', data_source_id: dataSource }, properties: propiedades }),
+  })
 }

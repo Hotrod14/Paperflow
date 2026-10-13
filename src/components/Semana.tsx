@@ -76,9 +76,11 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
                 <div className="bloque-semana">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                      <span className="kicker">{a.proyecto ?? 'sin proyecto'}</span>
+                      <span className="kicker">{b.sueltas ? 'tareas sueltas' : a.proyecto ?? 'sin proyecto'}</span>
                       <h2 className="tarjeta__titulo">
-                        {enlace ? (
+                        {b.sueltas ? (
+                          a.proyecto ?? 'Sin proyecto'
+                        ) : enlace ? (
                           <a href={enlace} target="_blank" rel="noreferrer">
                             {a.nombre}
                           </a>
@@ -90,7 +92,7 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
                     {b.detenida ? (
                       <span className="sello sello--neutro">detenida</span>
                     ) : (
-                      a.estado && <span className={`sello ${a.estado === 'Crítico en curso' ? 'sello--curso' : 'sello--ejecutado'}`}>{a.estado.toLowerCase()}</span>
+                      a.estado && !b.sueltas && <span className={`sello ${a.estado === 'Crítico en curso' ? 'sello--curso' : 'sello--ejecutado'}`}>{a.estado.toLowerCase()}</span>
                     )}
                   </div>
 
@@ -113,6 +115,9 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
                     <span className="datos">✅ sin cierres esta semana</span>
                   )}
 
+                  {b.sueltas ? (
+                    <span className="datos">📌 quedan {b.secundarios} {b.secundarios === 1 ? 'tarea' : 'tareas'}</span>
+                  ) : (
                   <span className="datos">
                     📌 quedan{' '}
                     <span style={{ color: 'var(--critico)' }}>
@@ -124,6 +129,7 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
                     </span>
                     {b.espera.length > 0 && ` · ❓ ${b.espera.length} esperan decisión`}
                   </span>
+                  )}
                 </div>
               </Papel>
             )
@@ -138,7 +144,7 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
             {vista.bloques.map((b) => (
               <label key={b.auditoria.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, minHeight: 32, cursor: 'pointer' }}>
                 <input type="checkbox" checked={incluidos.has(b.auditoria.id)} onChange={() => alternar(b.auditoria.id)} />
-                <span>{b.auditoria.nombre}</span>
+                <span>{b.sueltas ? `Tareas sueltas · ${b.auditoria.proyecto ?? ''}` : b.auditoria.nombre}</span>
               </label>
             ))}
             {faltan.length > 0 ? (

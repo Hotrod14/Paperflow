@@ -33,10 +33,16 @@ export function Tarjeta({ t, indice, lleno, acciones }: { t: TarjetaT; indice: n
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span className="kicker">
-              {a.id === SIN_ORIGEN_ID ? 'revisar origen' : `${a.proyecto ?? 'sin proyecto'} · ${(a.tipoOrigen ?? 'auditoría').toLowerCase()}`}
+              {a.id === SIN_ORIGEN_ID
+                ? 'revisar origen'
+                : t.sueltas
+                  ? 'tareas sueltas'
+                  : `${a.proyecto ?? 'sin proyecto'} · ${(a.tipoOrigen ?? 'auditoría').toLowerCase()}`}
             </span>
             <h3 className="tarjeta__titulo">
-              {enlace ? (
+              {t.sueltas ? (
+                a.proyecto ?? 'Sin proyecto'
+              ) : enlace ? (
                 <a href={enlace} target="_blank" rel="noreferrer">
                   {a.nombre}
                 </a>
@@ -45,12 +51,14 @@ export function Tarjeta({ t, indice, lleno, acciones }: { t: TarjetaT; indice: n
               )}
             </h3>
           </div>
-          {a.estado && <span className={claseSello(a.estado)}>{a.estado.toLowerCase()}</span>}
+          {a.estado && !t.sueltas && <span className={claseSello(a.estado)}>{a.estado.toLowerCase()}</span>}
         </div>
 
         <div className="tarjeta__cuenta datos">
           <span>
-            {t.criticos} {t.criticos === 1 ? 'crítico' : 'críticos'} · {t.secundarios} {t.secundarios === 1 ? 'secundario' : 'secundarios'}
+            {t.sueltas
+              ? `${t.secundarios} ${t.secundarios === 1 ? 'abierta' : 'abiertas'}`
+              : `${t.criticos} ${t.criticos === 1 ? 'crítico' : 'críticos'} · ${t.secundarios} ${t.secundarios === 1 ? 'secundario' : 'secundarios'}`}
           </span>
           <span>actualizado {t.actualizado}</span>
         </div>
@@ -81,8 +89,14 @@ export function Tarjeta({ t, indice, lleno, acciones }: { t: TarjetaT; indice: n
                   {p.titulo}
                 </button>
                 <div className="fila__meta">
-                  {esCritico ? <span className="tag-critico">crítico</span> : <span className="tag-secundario">secundario</span>}
-                  {p.categoria && <span className="datos">{p.categoria.toLowerCase()}</span>}
+                  {t.sueltas ? (
+                    p.nota && <span className="datos">{p.nota}</span>
+                  ) : (
+                    <>
+                      {esCritico ? <span className="tag-critico">crítico</span> : <span className="tag-secundario">secundario</span>}
+                      {p.categoria && <span className="datos">{p.categoria.toLowerCase()}</span>}
+                    </>
+                  )}
                   {quieto && <span className="tag-quieto">sin movimiento +2 sem</span>}
                 </div>
               </div>

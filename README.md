@@ -21,7 +21,8 @@ Supabase Edge Function `paperflow`
 Notion · bases "Auditorías" y "Pendientes"
 ```
 
-- La función acepta tres acciones: `leer`, `actualizarPendiente` y `actualizarAuditoria`.
+- La función acepta cuatro acciones: `leer`, `actualizarPendiente`, `actualizarAuditoria` y `crearTarea`.
+- `crearTarea` solo crea filas dentro de un origen llamado **"Tareas sueltas"** (uno por proyecto en la base Auditorías).
 - Solo se pueden escribir estos campos:
   - pendiente: Estado, Fecha de cierre, Cerrado por, Evidencia, En foco, Avisado a diseño
   - auditoría: Estado
@@ -33,7 +34,7 @@ Notion · bases "Auditorías" y "Pendientes"
 ### 1. Notion
 
 1. Crea una integración interna en <https://www.notion.so/profile/integrations>.
-   - Capacidades: leer contenido y actualizar contenido. No hace falta insertar.
+   - Capacidades: leer, actualizar e **insertar** contenido (insertar se usa solo para crear tareas sueltas).
 2. Copia el token (`ntn_…`) a tu gestor de contraseñas. Nunca lo pegues en una página de Notion.
 3. En la página **Paperflow — Auditorías y pendientes** (en *Journal*), abre `···` → *Conexiones* y agrega la integración.
    - Esa página contiene las dos bases; así quedan compartidas ambas.
@@ -97,6 +98,16 @@ Claude Code usa el MCP oficial de Notion y escribe en la misma fila:
 - **Cerrado por** = Claude Code
 
 El botón **copiar para Claude Code** en el detalle de cada pendiente arma esa instrucción. Paperflow lo muestra en la siguiente lectura (cada 3 minutos, al volver a la pestaña o con *releer*).
+
+## Tareas sueltas
+
+Para lo espontáneo ("me pidieron revisar los links de Ruta Digital"):
+
+1. En **Hoy**, botón **+ tarea suelta**: escribe la tarea, elige el proyecto y, si quieres, márcala para "para hoy".
+2. Queda en Notion dentro de "Tareas sueltas" de ese proyecto y aparece primero en Hoy.
+3. Se cierra igual que cualquier pendiente: marcando la casilla. En Semana aparece como "Tareas sueltas · proyecto".
+
+Para un proyecto nuevo, crea en la base Auditorías una fila con Nombre `Tareas sueltas`, su Proyecto y su Ámbito.
 
 ## Reglas de la vista
 
