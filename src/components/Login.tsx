@@ -1,11 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/api.ts'
 import { Papel, Ramita } from './Papel.tsx'
-import { SelectorTema } from './SelectorTema.tsx'
-import type { Tema } from '../lib/tema.ts'
 
 /** Acceso con enlace mágico. No hay registro: solo el correo creado en Supabase puede entrar. */
-export function Login({ tema, onCambiarTema }: { tema: Tema; onCambiarTema: (t: Tema) => void }) {
+export function Login() {
   const [correo, setCorreo] = useState('')
   const [estado, setEstado] = useState<'listo' | 'enviando' | 'enviado' | 'error'>('listo')
   const [mensaje, setMensaje] = useState('')
@@ -28,9 +26,6 @@ export function Login({ tema, onCambiarTema }: { tema: Tema; onCambiarTema: (t: 
   return (
     <div className="mesa" style={{ display: 'grid', placeItems: 'center', padding: 16 }}>
       <Ramita />
-      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 5 }}>
-        <SelectorTema tema={tema} onCambiar={onCambiarTema} />
-      </div>
       <Papel as="section" borde="b" girar={-0.4} aria-labelledby="login-t">
         <form onSubmit={enviar} style={{ width: 'min(420px, 88vw)', padding: '32px 30px 30px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           <span className="marca">paperflow</span>

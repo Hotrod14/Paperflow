@@ -74,10 +74,47 @@
   color-scheme: dark;
 }
 
+/* ---------- Fondos de la mesa (Ajustes) ----------
+   Solo cambian la mesa, el ticket y la ramita; el papel y la tinta se mantienen.
+   Madera claro oscurece un poco la tinta secundaria para conservar contraste AA sobre la mesa. */
+:root[data-fondo='cafe'] { --mesa: #dcc9ad; --ticket: #eadcc4; --hoja-verde: #7d6a4f; }
+:root[data-fondo='madera'] {
+  --mesa: #cda983; --ticket: #ebdfc8; --hoja-verde: #6b5232;
+  --tinta-2: #403d35; --critico: #87321f; --secundario: #5a420f; --azul: #223a64;
+  --mesa-textura:
+    repeating-linear-gradient(90deg, rgba(70, 40, 15, 0.16) 0 2px, transparent 2px 240px),
+    repeating-linear-gradient(91deg, rgba(110, 70, 30, 0.06) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(89deg, rgba(255, 240, 210, 0.07) 0 2px, transparent 2px 19px);
+}
+:root[data-fondo='pizarra'] { --mesa: #bfc8d0; --ticket: #dfe5ea; --hoja-verde: #5f6f7d; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro'])[data-fondo='cafe'] { --mesa: #2b2420; --ticket: #33291f; --hoja-verde: #5a4a37; }
+  :root:not([data-tema='claro'])[data-fondo='madera'] {
+    --mesa: #2a1e16; --ticket: #2f2419; --hoja-verde: #4a3a28;
+    --tinta-2: #c1baa8; --critico: #e8957a; --secundario: #e6bd62; --azul: #a9c1eb;
+    --mesa-textura:
+      repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 240px),
+      repeating-linear-gradient(91deg, rgba(255, 220, 170, 0.025) 0 1px, transparent 1px 7px);
+  }
+  :root:not([data-tema='claro'])[data-fondo='pizarra'] { --mesa: #1c2127; --ticket: #232a32; --hoja-verde: #4a5866; }
+}
+:root[data-tema='oscuro'][data-fondo='cafe'] { --mesa: #2b2420; --ticket: #33291f; --hoja-verde: #5a4a37; }
+:root[data-tema='oscuro'][data-fondo='madera'] {
+  --mesa: #2a1e16; --ticket: #2f2419; --hoja-verde: #4a3a28;
+  --tinta-2: #c1baa8; --critico: #e8957a; --secundario: #e6bd62; --azul: #a9c1eb;
+  --mesa-textura:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 240px),
+    repeating-linear-gradient(91deg, rgba(255, 220, 170, 0.025) 0 1px, transparent 1px 7px);
+}
+:root[data-tema='oscuro'][data-fondo='pizarra'] { --mesa: #1c2127; --ticket: #232a32; --hoja-verde: #4a5866; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  background: var(--mesa);
+  background-color: var(--mesa);
+  background-image: var(--mesa-textura, none);
+  background-attachment: fixed;
   color: var(--tinta);
   font-family: var(--lectura);
   -webkit-font-smoothing: antialiased;
@@ -217,6 +254,24 @@ a { color: var(--azul); }
 
 /* ---------- Celular ---------- */
 .nav-movil { display: none; }
+/* Menú de la persona */
+.menu { position: relative; }
+.menu__boton { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 2px 6px 2px 2px; background: transparent; border: 1.4px solid transparent; border-radius: 999px; color: var(--tinta-2); cursor: pointer; }
+.menu__boton:hover, .menu__boton[aria-expanded='true'] { border-color: var(--linea-2); color: var(--tinta); }
+.avatar { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--cinta); color: var(--tinta); border: 1.6px solid var(--tinta); font-family: var(--manuscrita); font-size: 22px; font-weight: 700; line-height: 1; }
+.avatar--grande { width: 48px; height: 48px; font-size: 28px; flex: none; }
+.menu__hoja { position: fixed; z-index: 40; max-height: calc(100vh - 100px); overflow-y: auto; width: min(320px, calc(100vw - 32px)); padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 10px 28px var(--sombra); border-radius: 4px 8px 5px 7px; }
+.menu__seccion { display: flex; flex-direction: column; gap: 10px; }
+.menu__seccion + .menu__seccion { border-top: 1px dashed var(--linea-2); padding-top: 14px; }
+.menu__seccion h2 { margin: 0; }
+.fondos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.fondo { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 8px; background: transparent; border: 1.4px solid var(--linea); border-radius: 10px 14px 11px 13px; color: var(--tinta-2); cursor: pointer; text-align: left; }
+.fondo[aria-pressed='true'] { border-color: var(--azul); color: var(--tinta); background: var(--quieto); }
+.fondo__muestra { position: relative; width: 34px; height: 34px; flex: none; border-radius: 6px; border: 1px solid var(--linea-2); overflow: hidden; }
+.fondo__muestra[data-muestra='madera'] { background-image: repeating-linear-gradient(90deg, rgba(70, 40, 15, 0.22) 0 1px, transparent 1px 11px) !important; background-color: inherit; }
+.fondo__hoja { position: absolute; right: 5px; bottom: 5px; width: 14px; height: 16px; background: var(--papel); box-shadow: 0 1px 2px var(--sombra); transform: rotate(-4deg); }
+.fondo__nombre { font-family: var(--manuscrita); font-size: 20px; line-height: 1.05; }
+
 /* Selector de tema */
 .tema { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px 16px 13px 15px; background: var(--papel); border: 1.4px solid var(--linea-2); }
 .tema button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 1.4px solid transparent; border-radius: var(--a-mano); background: transparent; color: var(--tinta-2); font-family: var(--manuscrita); font-size: 19px; cursor: pointer; }

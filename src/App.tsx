@@ -11,8 +11,8 @@ import { Semana } from './components/Semana.tsx'
 import { HojaDetalle } from './components/HojaDetalle.tsx'
 import { NuevaTarea, type DatosNuevaTarea } from './components/NuevaTarea.tsx'
 import type { AccionesTarjeta } from './components/Tarjeta.tsx'
-import { SelectorTema } from './components/SelectorTema.tsx'
-import { useTema, type Tema } from './lib/tema.ts'
+import { MenuUsuario } from './components/MenuUsuario.tsx'
+import { useApariencia } from './lib/tema.ts'
 
 type Ruta = 'hoy' | 'semana'
 const REFRESCO_MS = 3 * 60 * 1000
@@ -29,7 +29,7 @@ interface Aviso {
 }
 
 export default function App() {
-  const [tema, setTema] = useTema()
+  const apariencia = useApariencia()
   const [sesion, setSesion] = useState<Session | null | undefined>(undefined)
 
   useEffect(() => {
@@ -41,8 +41,8 @@ export default function App() {
 
   if (!configurado) return <SinConfigurar />
   if (sesion === undefined) return <div className="mesa" aria-busy="true" />
-  if (!sesion) return <Login tema={tema} onCambiarTema={setTema} />
-  return <Escritorio correo={sesion.user.email ?? ''} tema={tema} onCambiarTema={setTema} />
+  if (!sesion) return <Login />
+  return <Escritorio correo={sesion.user.email ?? ''} apariencia={apariencia} />
 }
 
 function SinConfigurar() {
@@ -60,7 +60,7 @@ function SinConfigurar() {
   )
 }
 
-function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tema; onCambiarTema: (t: Tema) => void }) {
+function Escritorio({ correo, apariencia }: { correo: string; apariencia: ReturnType<typeof useApariencia> }) {
   const [ruta, setRuta] = useState<Ruta>(rutaActual)
   const [ambito, setAmbito] = useState<Ambito>('Trabajo')
   const [datos, setDatos] = useState<Datos | null>(() => leerCopia())
@@ -211,6 +211,18 @@ function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tem
     return [...cuenta.entries()].sort((a, b) => b[1] - a[1])
   }, [vistaHoy])
 
+  const menu = (alinear: 'izquierda' | 'derecha') => (
+    <MenuUsuario
+      correo={correo}
+      tema={apariencia.tema}
+      onTema={apariencia.setTema}
+      fondo={apariencia.fondo}
+      onFondo={apariencia.setFondo}
+      onSalir={() => void supabase.auth.signOut()}
+      alinear={alinear}
+    />
+  )
+
   return (
     <div className="mesa">
       <Ramita />
@@ -225,12 +237,15 @@ function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tem
           <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined}>
             semana
           </a>
-          <SelectorTema tema={tema} onCambiar={onCambiarTema} compacto />
+          {menu('derecha')}
         </nav>
         <div className="columna-nav">
           <Papel as="nav" variante="rayado" borde="a" girar={-0.6} aria-label="Principal">
             <div className="nav-hoja">
-              <span className="marca">paperflow</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span className="marca">paperflow</span>
+                {menu('izquierda')}
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <a className="nav-link" href="#hoy" aria-current={ruta === 'hoy' ? 'page' : undefined}>
                   hoy
@@ -252,22 +267,12 @@ function Escritorio({ correo, tema, onCambiarTema }: { correo: string; tema: Tem
                   ))}
                 </div>
               )}
-              <SelectorTema tema={tema} onCambiar={onCambiarTema} />
               <div className="datos" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span aria-live="polite">
                   {cargando ? 'leyendo Notion…' : datos ? `notion leído ${haceCuanto(datos.leidoEn, ahora)}` : 'sin datos aún'}
                 </span>
                 <button type="button" className="btn-texto" style={{ alignSelf: 'flex-start' }} disabled={cargando} onClick={() => void cargar(true)}>
                   releer
-                </button>
-                <button
-                  type="button"
-                  className="btn-texto btn-texto--suave"
-                  style={{ alignSelf: 'flex-start' }}
-                  title={correo}
-                  onClick={() => void supabase.auth.signOut()}
-                >
-                  salir
                 </button>
               </div>
             </div>
