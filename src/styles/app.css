@@ -97,7 +97,7 @@ a { color: var(--azul); }
 /* ---------- Tipografía ---------- */
 .manuscrita { font-family: var(--manuscrita); }
 .datos { font-family: var(--datos); font-size: 12px; color: var(--tinta-2); }
-.titulo-pagina { margin: 0; font-family: var(--manuscrita); font-size: clamp(42px, 6vw, 56px); font-weight: 700; line-height: 1; }
+.titulo-pagina { margin: 0 0 8px; font-family: var(--manuscrita); font-size: clamp(42px, 6vw, 56px); font-weight: 700; line-height: 1; }
 .titulo-seccion { margin: 0; font-family: var(--manuscrita); font-size: 32px; font-weight: 700; line-height: 1; }
 .suave { color: var(--tinta-2); }
 .kicker { font-family: var(--datos); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tinta-2); }
