@@ -18,6 +18,8 @@
       try {
         var t = localStorage.getItem('paperflow:tema')
         if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.tema = t
+        var f = localStorage.getItem('paperflow:fondo')
+        if (f === 'cafe' || f === 'madera' || f === 'pizarra') document.documentElement.dataset.fondo = f
       } catch (e) {}
     </script>
   </head>

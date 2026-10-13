@@ -34,6 +34,8 @@ export function Hoy({
   const r = vista.resumen
   const huecos = Math.max(0, MAX_PARA_HOY - vista.abiertosEnHoy)
   const dJueves = diasHastaJueves()
+  const sueltas = vista.tarjetas.filter((t) => t.sueltas)
+  const auditorias = vista.tarjetas.filter((t) => !t.sueltas)
 
   return (
     <>
@@ -107,24 +109,46 @@ export function Hoy({
           </ol>
         </Papel>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-          <h2 className="titulo-seccion">por auditoría</h2>
-          <span className="datos" style={{ fontSize: 13 }}>
-            críticas primero · hechos fuera de la vista
-          </span>
-        </div>
-
-        {vista.tarjetas.length === 0 ? (
-          <p className="manuscrita suave" style={{ fontSize: 24, margin: 0 }}>
-            no hay pendientes abiertos en {ambito.toLowerCase()}. buen día.
-          </p>
-        ) : (
-          <div className="grilla">
-            {vista.tarjetas.map((t, i) => (
-              <Tarjeta key={t.auditoria.id} t={t} indice={i} lleno={vista.lleno} acciones={acciones} />
-            ))}
-          </div>
+        {sueltas.length > 0 && (
+          <section aria-labelledby="sueltas-t" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+              <h2 id="sueltas-t" className="titulo-seccion">
+                tareas sueltas
+              </h2>
+              <span className="datos" style={{ fontSize: 13 }}>
+                lo espontáneo · por proyecto
+              </span>
+            </div>
+            <div className="grilla">
+              {sueltas.map((t, i) => (
+                <Tarjeta key={t.auditoria.id} t={t} indice={i + 1} lleno={vista.lleno} acciones={acciones} />
+              ))}
+            </div>
+          </section>
         )}
+
+        <section aria-labelledby="auditorias-t" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <h2 id="auditorias-t" className="titulo-seccion">
+              por auditoría
+            </h2>
+            <span className="datos" style={{ fontSize: 13 }}>
+              críticas primero · hechos fuera de la vista
+            </span>
+          </div>
+
+          {auditorias.length === 0 ? (
+            <p className="manuscrita suave" style={{ fontSize: 24, margin: 0 }}>
+              no hay pendientes de auditorías en {ambito.toLowerCase()}. buen día.
+            </p>
+          ) : (
+            <div className="grilla">
+              {auditorias.map((t, i) => (
+                <Tarjeta key={t.auditoria.id} t={t} indice={i} lleno={vista.lleno} acciones={acciones} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
       <aside className="columna-lateral" aria-label="Resumen">

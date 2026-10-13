@@ -36,7 +36,7 @@ export function Tarjeta({ t, indice, lleno, acciones }: { t: TarjetaT; indice: n
               {a.id === SIN_ORIGEN_ID
                 ? 'revisar origen'
                 : t.sueltas
-                  ? 'tareas sueltas'
+                  ? 'proyecto'
                   : `${a.proyecto ?? 'sin proyecto'} · ${(a.tipoOrigen ?? 'auditoría').toLowerCase()}`}
             </span>
             <h3 className="tarjeta__titulo">
