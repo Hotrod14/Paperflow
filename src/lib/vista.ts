@@ -3,15 +3,58 @@
 
 import type { Ambito, Auditoria, Datos, Pendiente } from './tipos.ts'
 import { diasDesde, haceCuanto, sumarDias } from './fechas.ts'
-import { NOMBRE_SUELTAS } from '../../supabase/functions/_shared/mapeo.ts'
+import { NOMBRE_SUELTAS, PROYECTOS } from '../../supabase/functions/_shared/mapeo.ts'
 
-export { NOMBRE_SUELTAS }
+export { NOMBRE_SUELTAS, PROYECTOS }
 /** "Tareas sueltas": origen por proyecto para lo espontáneo; no es una auditoría. */
 export const esSueltas = (a: Auditoria | null | undefined) => a?.nombre === NOMBRE_SUELTAS
 
-/** Orígenes donde se pueden crear tareas sueltas, para un ámbito. */
-export function origenesSueltos(datos: Datos, ambito: Ambito): Auditoria[] {
-  return datos.auditorias.filter((a) => esSueltas(a) && a.ambito === ambito).sort((x, y) => (x.proyecto ?? '').localeCompare(y.proyecto ?? ''))
+/**
+ * Las tareas sueltas viven en su propia base de Notion. Para la vista se presentan
+ * como un grupo "Tareas sueltas" por proyecto y ámbito, así Hoy y Semana las tratan igual.
+ */
+export function integrarSueltas(datos: Datos): Datos {
+  const sueltas = datos.sueltas ?? []
+  if (!sueltas.length) return datos
+  const grupos = new Map<string, Auditoria>()
+  const pendientes: Pendiente[] = sueltas.map((s) => {
+    const proyecto = s.proyecto ?? 'Otro'
+    const id = `sueltas:${s.ambito}:${proyecto}`
+    if (!grupos.has(id)) {
+      grupos.set(id, {
+        id,
+        nombre: NOMBRE_SUELTAS,
+        proyecto,
+        ambito: s.ambito,
+        tipoOrigen: NOMBRE_SUELTAS,
+        estado: null,
+        problemaCritico: '',
+        pagina: null,
+        notionUrl: '',
+        inicio: null,
+        ultimaActividad: null,
+        editadoEn: s.editadoEn,
+      })
+    }
+    return {
+      id: s.id,
+      titulo: s.titulo,
+      origenId: id,
+      tipo: null,
+      categoria: 'Hacer ya',
+      estado: s.estado,
+      fechaCierre: s.fechaCierre,
+      evidencia: s.evidencia,
+      afectaPantallas: false,
+      avisadoDiseno: false,
+      nota: s.nota,
+      enFoco: s.enFoco,
+      cerradoPor: s.cerradoPor,
+      notionUrl: s.notionUrl,
+      editadoEn: s.editadoEn,
+    }
+  })
+  return { ...datos, auditorias: [...datos.auditorias, ...grupos.values()], pendientes: [...datos.pendientes, ...pendientes], sueltas: [] }
 }
 
 export const MAX_PARA_HOY = 3
@@ -96,7 +139,8 @@ function compararFilas(a: Pendiente, b: Pendiente): number {
   return (ORDEN_CATEGORIA[a.categoria ?? ''] ?? 3) - (ORDEN_CATEGORIA[b.categoria ?? ''] ?? 3)
 }
 
-export function construirHoy(datos: Datos, ambito: Ambito, hoy: string, ahora: Date = new Date()): VistaHoy {
+export function construirHoy(crudos: Datos, ambito: Ambito, hoy: string, ahora: Date = new Date()): VistaHoy {
+  const datos = integrarSueltas(crudos)
   const enAmbito = (p: Pendiente) => ambitoDe(datos, p) === ambito
   const pendientes = datos.pendientes.filter(enAmbito)
 
@@ -204,7 +248,8 @@ export interface VistaSemana {
 }
 
 /** Últimos 7 días (hoy incluido), solo ámbito Trabajo por defecto. */
-export function construirSemana(datos: Datos, ambito: Ambito, hoy: string, ahora: Date = new Date()): VistaSemana {
+export function construirSemana(crudos: Datos, ambito: Ambito, hoy: string, ahora: Date = new Date()): VistaSemana {
+  const datos = integrarSueltas(crudos)
   const desde = sumarDias(hoy, -6)
   const bloques: BloqueSemana[] = []
   for (const a of datos.auditorias.filter((x) => x.ambito === ambito)) {

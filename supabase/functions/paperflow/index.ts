@@ -5,8 +5,8 @@
 //       → auditorías + pendientes abiertos + cerrados en los últimos 35 días
 //   { accion: "actualizarPendiente", id, cambios }
 //   { accion: "actualizarAuditoria", id, cambios }
-//   { accion: "crearTarea", nueva: { titulo, origenId, nota?, enFoco? } }
-//       → crea una tarea suelta; el origen debe ser un "Tareas sueltas"
+//   { accion: "crearTarea", nueva: { titulo, proyecto, ambito, nota?, enFoco? } }
+//       → crea una fila en la base "Tareas sueltas"
 //
 // No guarda datos propios: solo una caché en memoria de 45 s por
 // instancia, que se invalida en cada escritura.
@@ -17,17 +17,18 @@ import {
   actualizarPagina,
   consultarTodo,
   crearPagina,
-  paginaDe,
   DB_AUDITORIAS,
   DB_PENDIENTES,
   DS_AUDITORIAS,
   DS_PENDIENTES,
+  DB_SUELTAS,
+  DS_SUELTAS,
 } from '../_shared/notion.ts'
 import {
   aAuditoria,
   aPendiente,
+  aTareaSuelta,
   ErrorCambios,
-  NOMBRE_SUELTAS,
   PROP,
   propiedadesNuevaTarea,
   propiedadesAuditoria,
@@ -43,19 +44,22 @@ async function leer(fresco: boolean) {
   if (!fresco && cache && Date.now() - cache.en < TTL_MS) return cache.datos
 
   const hace35 = new Date(Date.now() - 35 * 86_400_000).toISOString().slice(0, 10)
-  const [auds, pens] = await Promise.all([
+  const vivos = {
+    or: [
+      { property: PROP.pen.estado, select: { equals: 'Abierto' } },
+      { property: PROP.pen.fechaCierre, date: { on_or_after: hace35 } },
+    ],
+  }
+  const [auds, pens, sueltas] = await Promise.all([
     consultarTodo(DS_AUDITORIAS),
-    consultarTodo(DS_PENDIENTES, {
-      or: [
-        { property: PROP.pen.estado, select: { equals: 'Abierto' } },
-        { property: PROP.pen.fechaCierre, date: { on_or_after: hace35 } },
-      ],
-    }),
+    consultarTodo(DS_PENDIENTES, vivos),
+    consultarTodo(DS_SUELTAS, vivos),
   ])
   const datos = {
     leidoEn: new Date().toISOString(),
     auditorias: auds.map(aAuditoria),
     pendientes: pens.map(aPendiente),
+    sueltas: sueltas.map(aTareaSuelta),
   }
   cache = { en: Date.now(), datos }
   return datos
@@ -88,10 +92,14 @@ Deno.serve(async (req) => {
         if (e instanceof ErrorCambios) throw new ErrorHttp(e.message)
         throw e
       }
+      // Un pendiente puede vivir en "Pendientes" o en "Tareas sueltas" (mismos campos de cierre).
       const esperado =
         body.accion === 'actualizarPendiente'
-          ? { dataSource: DS_PENDIENTES, database: DB_PENDIENTES }
-          : { dataSource: DS_AUDITORIAS, database: DB_AUDITORIAS }
+          ? [
+              { dataSource: DS_PENDIENTES, database: DB_PENDIENTES },
+              { dataSource: DS_SUELTAS, database: DB_SUELTAS },
+            ]
+          : [{ dataSource: DS_AUDITORIAS, database: DB_AUDITORIAS }]
       await actualizarPagina(body.id, esperado, props)
       cache = null
       return json(req, { ok: true })
@@ -100,7 +108,6 @@ Deno.serve(async (req) => {
     if (body?.accion === 'crearTarea') {
       const nueva = body.nueva
       if (!nueva || typeof nueva !== 'object') throw new ErrorHttp('nueva inválida')
-      if (typeof nueva.origenId !== 'string' || !ID_RE.test(nueva.origenId)) throw new ErrorHttp('origen inválido')
       let props
       try {
         props = propiedadesNuevaTarea(nueva)
@@ -108,13 +115,11 @@ Deno.serve(async (req) => {
         if (e instanceof ErrorCambios) throw new ErrorHttp(e.message)
         throw e
       }
-      // Solo se crean tareas dentro de un origen "Tareas sueltas" de Paperflow.
-      const origen = aAuditoria(await paginaDe(nueva.origenId, { dataSource: DS_AUDITORIAS, database: DB_AUDITORIAS }))
-      if (origen.nombre !== NOMBRE_SUELTAS) throw new ErrorHttp('Solo se pueden crear tareas en "Tareas sueltas"', 403)
+      // Solo se crean filas en la base "Tareas sueltas".
       // deno-lint-ignore no-explicit-any
-      const creada: any = await crearPagina(DS_PENDIENTES, props)
+      const creada: any = await crearPagina(DS_SUELTAS, props)
       cache = null
-      return json(req, aPendiente(creada))
+      return json(req, aTareaSuelta(creada))
     }
 
     throw new ErrorHttp('Acción desconocida')

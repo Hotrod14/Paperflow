@@ -18,13 +18,13 @@ Navegador (React, Vercel)
 Supabase Edge Function `paperflow`
    │  token de Notion (solo vive aquí)
    ▼
-Notion · bases "Auditorías" y "Pendientes"
+Notion · bases "Auditorías", "Pendientes" y "Tareas sueltas"
 ```
 
 - La función acepta cuatro acciones: `leer`, `actualizarPendiente`, `actualizarAuditoria` y `crearTarea`.
-- `crearTarea` solo crea filas dentro de un origen llamado **"Tareas sueltas"** (uno por proyecto en la base Auditorías).
+- `crearTarea` solo crea filas en la base **"Tareas sueltas"** (separada de Auditorías y Pendientes).
 - Solo se pueden escribir estos campos:
-  - pendiente: Estado, Fecha de cierre, Cerrado por, Evidencia, En foco, Avisado a diseño
+  - pendiente o tarea suelta: Estado, Fecha de cierre, Cerrado por, Evidencia, En foco (y Avisado a diseño en pendientes)
   - auditoría: Estado
 - Antes de escribir, verifica que la página pertenezca a las bases de Paperflow.
 - Si Notion no responde, la app muestra la última copia guardada en el navegador.
@@ -37,7 +37,7 @@ Notion · bases "Auditorías" y "Pendientes"
    - Capacidades: leer, actualizar e **insertar** contenido (insertar se usa solo para crear tareas sueltas).
 2. Copia el token (`ntn_…`) a tu gestor de contraseñas. Nunca lo pegues en una página de Notion.
 3. En la página **Paperflow — Auditorías y pendientes** (en *Journal*), abre `···` → *Conexiones* y agrega la integración.
-   - Esa página contiene las dos bases; así quedan compartidas ambas.
+   - Esa página contiene las tres bases; así quedan compartidas todas.
 
 ### 2. Supabase
 
@@ -67,6 +67,7 @@ Variables opcionales, ya tienen valor por defecto:
 | `NOTION_VERSION` | Versión de la API (`2025-09-03`) |
 | `NOTION_DS_AUDITORIAS` / `NOTION_DS_PENDIENTES` | IDs de data source |
 | `NOTION_DB_AUDITORIAS` / `NOTION_DB_PENDIENTES` | IDs de base de datos |
+| `NOTION_DS_SUELTAS` / `NOTION_DB_SUELTAS` | Base "Tareas sueltas" |
 
 ### 3. Vercel
 
@@ -104,10 +105,10 @@ El botón **copiar para Claude Code** en el detalle de cada pendiente arma esa i
 Para lo espontáneo ("me pidieron revisar los links de Ruta Digital"):
 
 1. En **Hoy**, botón **+ tarea suelta**: escribe la tarea, elige el proyecto y, si quieres, márcala para "para hoy".
-2. Queda en Notion dentro de "Tareas sueltas" de ese proyecto y aparece primero en Hoy.
+2. Queda en la base **"Tareas sueltas"** de Notion (Tarea, Proyecto, Ámbito, Estado, En foco, Nota…) y aparece en su propio apartado de Hoy.
 3. Se cierra igual que cualquier pendiente: marcando la casilla. En Semana aparece como "Tareas sueltas · proyecto".
 
-Para un proyecto nuevo, crea en la base Auditorías una fila con Nombre `Tareas sueltas`, su Proyecto y su Ámbito.
+Los proyectos disponibles son las opciones de la propiedad Proyecto (Kefuri, Ruta Digital, Paperflow, Tecnopolis, Cap Ideas, Otro). Para sumar uno, agrégalo en Notion y en `PROYECTOS` de `mapeo.ts`.
 
 ## Reglas de la vista
 

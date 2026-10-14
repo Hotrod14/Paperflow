@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { construirHoy, construirSemana, guionOral, SIN_ORIGEN_ID } from './vista.ts'
-import type { Auditoria, Datos, Pendiente } from './tipos.ts'
+import { construirHoy, construirSemana, guionOral, integrarSueltas, SIN_ORIGEN_ID } from './vista.ts'
+import type { Auditoria, Datos, Pendiente, TareaSuelta } from './tipos.ts'
 import { aPendiente, propiedadesNuevaTarea, propiedadesPendiente, propiedadesAuditoria } from '../../supabase/functions/_shared/mapeo.ts'
 
 const AHORA = new Date('2026-10-12T12:00:00')
@@ -164,17 +164,37 @@ describe('mapeo de Notion', () => {
 })
 
 describe('tareas sueltas', () => {
-  const d = datos(
-    [
-      aud({ id: 'a1', nombre: 'Validaciones' }),
-      aud({ id: 's1', nombre: 'Tareas sueltas', proyecto: 'Ruta Digital', tipoOrigen: 'Bitácora', estado: null }),
+  const suelta = (o: Partial<TareaSuelta> & { id: string }): TareaSuelta => ({
+    titulo: o.id,
+    proyecto: 'Ruta Digital',
+    ambito: 'Trabajo',
+    estado: 'Abierto',
+    fechaCierre: null,
+    evidencia: '',
+    nota: '',
+    enFoco: null,
+    cerradoPor: null,
+    notionUrl: '',
+    editadoEn: RECIENTE,
+    ...o,
+  })
+  const d: Datos = {
+    ...datos([aud({ id: 'a1', nombre: 'Validaciones' })], [pen({ id: 'p1', tipo: 'Crítico' })]),
+    sueltas: [
+      suelta({ id: 't1', titulo: 'Revisar links', enFoco: HOY }),
+      suelta({ id: 't2', titulo: 'Links listos', estado: 'Hecho', fechaCierre: HOY }),
+      suelta({ id: 't3', titulo: 'Personal', proyecto: 'Otro', ambito: 'Personal' }),
     ],
-    [
-      pen({ id: 'p1', tipo: 'Crítico' }),
-      pen({ id: 't1', origenId: 's1', tipo: null, titulo: 'Revisar links', enFoco: HOY }),
-      pen({ id: 't2', origenId: 's1', tipo: null, titulo: 'Links listos', estado: 'Hecho', fechaCierre: HOY }),
-    ],
-  )
+  }
+
+  it('vienen de su propia base y se agrupan por proyecto y ámbito', () => {
+    const i = integrarSueltas(d)
+    expect(i.auditorias.filter((a) => a.nombre === 'Tareas sueltas').map((a) => a.id)).toEqual([
+      'sueltas:Trabajo:Ruta Digital',
+      'sueltas:Personal:Otro',
+    ])
+    expect(i.pendientes.find((p) => p.id === 't1')?.origenId).toBe('sueltas:Trabajo:Ruta Digital')
+  })
 
   it('van primero, sin sugerencia y contadas aparte del resumen de auditorías', () => {
     const v = construirHoy(d, 'Trabajo', HOY, AHORA)
@@ -184,20 +204,21 @@ describe('tareas sueltas', () => {
   })
 
   it('el guion habla de tareas, no de secundarios', () => {
-    const g = guionOral(construirSemana(d, 'Trabajo', HOY, AHORA), new Set(['a1', 's1']))
+    const g = guionOral(construirSemana(d, 'Trabajo', HOY, AHORA), new Set(['a1', 'sueltas:Trabajo:Ruta Digital']))
     expect(g).toContain('Ruta Digital · Tareas sueltas')
     expect(g).toContain('✅ Se cerraron 1: Links listos.')
     expect(g).toContain('📌 Quedan 1 tarea.')
   })
 
-  it('una tarea nueva solo acepta título, origen, nota y "para hoy"', () => {
-    expect(() => propiedadesNuevaTarea({ titulo: '', origenId: 's1' })).toThrow()
-    expect(() => propiedadesNuevaTarea({ titulo: 'x', origenId: 's1', tipo: 'Crítico' })).toThrow()
-    expect(propiedadesNuevaTarea({ titulo: ' Revisar links ', origenId: 's1', nota: '', enFoco: HOY })).toEqual({
-      Pendiente: { title: [{ text: { content: 'Revisar links' } }] },
-      Origen: { relation: [{ id: 's1' }] },
+  it('una tarea nueva solo acepta título, proyecto, ámbito, nota y "para hoy"', () => {
+    expect(() => propiedadesNuevaTarea({ titulo: '', proyecto: 'Kefuri', ambito: 'Trabajo' })).toThrow()
+    expect(() => propiedadesNuevaTarea({ titulo: 'x', proyecto: 'Inventado', ambito: 'Trabajo' })).toThrow()
+    expect(() => propiedadesNuevaTarea({ titulo: 'x', proyecto: 'Kefuri', ambito: 'Trabajo', tipo: 'Crítico' })).toThrow()
+    expect(propiedadesNuevaTarea({ titulo: ' Revisar links ', proyecto: 'Ruta Digital', ambito: 'Trabajo', nota: '', enFoco: HOY })).toEqual({
+      Tarea: { title: [{ text: { content: 'Revisar links' } }] },
+      Proyecto: { select: { name: 'Ruta Digital' } },
+      Ámbito: { select: { name: 'Trabajo' } },
       Estado: { select: { name: 'Abierto' } },
-      Categoría: { select: { name: 'Hacer ya' } },
       'En foco': { date: { start: HOY } },
     })
   })

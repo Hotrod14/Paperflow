@@ -16,6 +16,11 @@ export const DS_PENDIENTES = Deno.env.get('NOTION_DS_PENDIENTES') ?? '7ee6b1c6-1
 // Bases que contienen esos data sources (para validar el padre de una página).
 export const DB_AUDITORIAS = Deno.env.get('NOTION_DB_AUDITORIAS') ?? 'c19ec3ae68b14e2e9342afb373f5e5d3'
 export const DB_PENDIENTES = Deno.env.get('NOTION_DB_PENDIENTES') ?? 'df3a9d5b94864ca0b4086fe272581e47'
+// Base "Tareas sueltas" (lo espontáneo, separado de auditorías y pendientes).
+export const DS_SUELTAS = Deno.env.get('NOTION_DS_SUELTAS') ?? '14c8c58e-ba0c-4235-88f8-39727f4de2f6'
+export const DB_SUELTAS = Deno.env.get('NOTION_DB_SUELTAS') ?? 'd50a9894a07d45a98cae3120e4e4b59b'
+
+export type Base = { dataSource: string; database: string }
 
 const sinGuiones = (id: string) => id.replace(/-/g, '').toLowerCase()
 
@@ -71,23 +76,21 @@ export async function consultarTodo(dataSourceId: string, filtro?: unknown): Pro
  * Actualiza una página SOLO si pertenece al data source esperado.
  * Evita que la API se use para editar cualquier otra página del workspace.
  */
-/** Lee una página y confirma que su padre es la base esperada de Paperflow. */
-export async function paginaDe(pageId: string, esperado: { dataSource: string; database: string }) {
+/** Lee una página y confirma que su padre es una de las bases esperadas de Paperflow. */
+export async function paginaDe(pageId: string, esperadas: Base[]) {
   // deno-lint-ignore no-explicit-any
   const pagina: any = await notion(`/pages/${pageId}`)
   const padre = pagina?.parent ?? {}
-  const coincide =
-    (padre.data_source_id && sinGuiones(padre.data_source_id) === sinGuiones(esperado.dataSource)) ||
-    (padre.database_id && sinGuiones(padre.database_id) === sinGuiones(esperado.database))
+  const coincide = esperadas.some(
+    (e) =>
+      (padre.data_source_id && sinGuiones(padre.data_source_id) === sinGuiones(e.dataSource)) ||
+      (padre.database_id && sinGuiones(padre.database_id) === sinGuiones(e.database)),
+  )
   if (!coincide) throw new ErrorHttp('La página no pertenece a Paperflow', 403)
   return pagina
 }
 
-export async function actualizarPagina(
-  pageId: string,
-  esperado: { dataSource: string; database: string },
-  propiedades: unknown,
-) {
+export async function actualizarPagina(pageId: string, esperado: Base[], propiedades: unknown) {
   await paginaDe(pageId, esperado)
   return notion(`/pages/${pageId}`, { method: 'PATCH', body: JSON.stringify({ properties: propiedades }) })
 }

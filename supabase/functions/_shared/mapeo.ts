@@ -32,6 +32,18 @@ export const PROP = {
     enFoco: 'En foco',
     cerradoPor: 'Cerrado por',
   },
+  // Base "Tareas sueltas": mismos nombres que Pendientes para estado, fechas, nota y cierre.
+  sue: {
+    titulo: 'Tarea',
+    proyecto: 'Proyecto',
+    ambito: 'Ámbito',
+    estado: 'Estado',
+    fechaCierre: 'Fecha de cierre',
+    evidencia: 'Evidencia',
+    nota: 'Nota',
+    enFoco: 'En foco',
+    cerradoPor: 'Cerrado por',
+  },
 } as const
 
 export const ESTADOS_AUDITORIA = [
@@ -213,37 +225,74 @@ export function propiedadesAuditoria(cambios: Record<string, unknown>): Record<s
 
 // ---------------------------------------------------------------- Tareas sueltas
 
-/** Nombre del "origen" que agrupa las tareas espontáneas de cada proyecto. */
+/** Nombre con que la vista agrupa las tareas sueltas de un proyecto. */
 export const NOMBRE_SUELTAS = 'Tareas sueltas'
+export const PROYECTOS = ['Kefuri', 'Ruta Digital', 'Paperflow', 'Tecnopolis', 'Cap Ideas', 'Otro'] as const
+export const AMBITOS = ['Trabajo', 'Personal'] as const
+
+export interface TareaSuelta {
+  id: string
+  titulo: string
+  proyecto: string | null
+  ambito: 'Trabajo' | 'Personal'
+  estado: string | null
+  fechaCierre: string | null
+  evidencia: string
+  nota: string
+  enFoco: string | null
+  cerradoPor: string | null
+  notionUrl: string
+  editadoEn: string
+}
+
+export function aTareaSuelta(pg: Pagina): TareaSuelta {
+  const p = pg.properties
+  return {
+    id: pg.id,
+    titulo: texto(p[PROP.sue.titulo]) || 'Sin título',
+    proyecto: seleccion(p[PROP.sue.proyecto]),
+    ambito: seleccion(p[PROP.sue.ambito]) === 'Personal' ? 'Personal' : 'Trabajo',
+    estado: seleccion(p[PROP.sue.estado]),
+    fechaCierre: fecha(p[PROP.sue.fechaCierre]),
+    evidencia: texto(p[PROP.sue.evidencia]),
+    nota: texto(p[PROP.sue.nota]),
+    enFoco: fecha(p[PROP.sue.enFoco]),
+    cerradoPor: seleccion(p[PROP.sue.cerradoPor]),
+    notionUrl: pg.url,
+    editadoEn: pg.last_edited_time,
+  }
+}
 
 export interface NuevaTarea {
   titulo: string
-  origenId: string
+  proyecto: string
+  ambito: string
   nota?: string
   enFoco?: string | null
 }
 
-/** Propiedades de una tarea suelta nueva. Solo título, origen, nota y "para hoy". */
+/** Propiedades de una tarea suelta nueva: título, proyecto, ámbito, nota y "para hoy". */
 // deno-lint-ignore no-explicit-any
 export function propiedadesNuevaTarea(n: Record<string, unknown>): Record<string, any> {
-  const permitidos = ['titulo', 'origenId', 'nota', 'enFoco']
+  const permitidos = ['titulo', 'proyecto', 'ambito', 'nota', 'enFoco']
   const extra = Object.keys(n).filter((k) => !permitidos.includes(k))
   if (extra.length) throw new ErrorCambios(`Campos no permitidos: ${extra.join(', ')}`)
   const titulo = typeof n.titulo === 'string' ? n.titulo.trim() : ''
   if (!titulo || titulo.length > 200) throw new ErrorCambios('titulo: texto de 1 a 200 caracteres')
-  if (typeof n.origenId !== 'string' || !n.origenId) throw new ErrorCambios('origenId requerido')
+  const proyecto = validarOpcion(n.proyecto, PROYECTOS, 'proyecto')
+  const ambito = validarOpcion(n.ambito, AMBITOS, 'ambito')
   const nota = n.nota === undefined ? '' : n.nota
   if (typeof nota !== 'string' || nota.length > 500) throw new ErrorCambios('nota: texto de hasta 500 caracteres')
   const enFoco = n.enFoco === undefined ? null : validarFecha(n.enFoco, 'enFoco')
 
   // deno-lint-ignore no-explicit-any
   const props: Record<string, any> = {
-    [PROP.pen.titulo]: { title: [{ text: { content: titulo } }] },
-    [PROP.pen.origen]: { relation: [{ id: n.origenId }] },
-    [PROP.pen.estado]: { select: { name: 'Abierto' } },
-    [PROP.pen.categoria]: { select: { name: 'Hacer ya' } },
+    [PROP.sue.titulo]: { title: [{ text: { content: titulo } }] },
+    [PROP.sue.proyecto]: { select: { name: proyecto } },
+    [PROP.sue.ambito]: { select: { name: ambito } },
+    [PROP.sue.estado]: { select: { name: 'Abierto' } },
   }
-  if (nota.trim()) props[PROP.pen.nota] = { rich_text: [{ text: { content: nota.trim() } }] }
-  if (enFoco) props[PROP.pen.enFoco] = { date: { start: enFoco } }
+  if (nota.trim()) props[PROP.sue.nota] = { rich_text: [{ text: { content: nota.trim() } }] }
+  if (enFoco) props[PROP.sue.enFoco] = { date: { start: enFoco } }
   return props
 }

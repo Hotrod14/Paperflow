@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { CambiosAuditoria, CambiosPendiente, Datos, Pendiente } from './tipos.ts'
+import type { Ambito, CambiosAuditoria, CambiosPendiente, Datos, TareaSuelta } from './tipos.ts'
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -36,8 +36,8 @@ export const actualizarPendiente = (id: string, cambios: CambiosPendiente) =>
 export const actualizarAuditoria = (id: string, cambios: CambiosAuditoria) =>
   llamar<{ ok: true }>({ accion: 'actualizarAuditoria', id, cambios })
 
-export const crearTarea = (nueva: { titulo: string; origenId: string; nota?: string; enFoco?: string | null }) =>
-  llamar<Pendiente>({ accion: 'crearTarea', nueva })
+export const crearTarea = (nueva: { titulo: string; proyecto: string; ambito: Ambito; nota?: string; enFoco?: string | null }) =>
+  llamar<TareaSuelta>({ accion: 'crearTarea', nueva })
 
 // Última lectura buena, para no mostrar nunca una pantalla vacía si Notion no responde.
 const CLAVE = 'paperflow:ultima-lectura'

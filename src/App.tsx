@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Ambito, CambiosPendiente, Datos, Pendiente } from './lib/tipos.ts'
 import { actualizarAuditoria, actualizarPendiente, configurado, crearTarea, guardarCopia, leer, leerCopia, supabase } from './lib/api.ts'
-import { auditoriaDe, construirHoy, construirSemana, origenesSueltos } from './lib/vista.ts'
+import { auditoriaDe, construirHoy, construirSemana, integrarSueltas, PROYECTOS } from './lib/vista.ts'
 import { fechaLocal, haceCuanto } from './lib/fechas.ts'
 import { Papel, Ramita } from './components/Papel.tsx'
 import { Login } from './components/Login.tsx'
@@ -18,6 +18,12 @@ import { Analytics } from '@vercel/analytics/react'
 type Ruta = 'hoy' | 'semana'
 const REFRESCO_MS = 3 * 60 * 1000
 const AVISO_MS = 6000
+
+/** Aplica cambios a un pendiente, viva en "Pendientes" o en "Tareas sueltas". */
+function aplicarCambios(d: Datos, id: string, cambios: Partial<Pendiente>): Datos {
+  const mezclar = <T extends { id: string }>(x: T): T => (x.id === id ? { ...x, ...cambios } : x)
+  return { ...d, pendientes: d.pendientes.map(mezclar), sueltas: d.sueltas?.map(mezclar) }
+}
 
 function rutaActual(): Ruta {
   return window.location.hash === '#semana' ? 'semana' : 'hoy'
@@ -132,7 +138,7 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
   const cambiarPendiente = useCallback(
     async (p: Pendiente, cambios: CambiosPendiente) => {
       const local = { ...cambios } as Partial<Pendiente>
-      setDatos((d) => d && { ...d, pendientes: d.pendientes.map((x) => (x.id === p.id ? { ...x, ...local } : x)) })
+      setDatos((d) => d && aplicarCambios(d, p.id, local))
       try {
         await actualizarPendiente(p.id, cambios)
         setDatos((d) => {
@@ -142,7 +148,7 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
       } catch (e) {
         const previo: Partial<Pendiente> = {}
         for (const k of Object.keys(cambios) as (keyof Pendiente)[]) (previo as Record<string, unknown>)[k] = p[k]
-        setDatos((d) => d && { ...d, pendientes: d.pendientes.map((x) => (x.id === p.id ? { ...x, ...previo } : x)) })
+        setDatos((d) => d && aplicarCambios(d, p.id, previo))
         mostrarAviso({ texto: `No se guardó en Notion: ${e instanceof Error ? e.message : 'error'}`, error: true })
         throw e
       }
@@ -190,17 +196,17 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
   // ---- Tarea suelta: se crea en Notion y se agrega a la vista con el id real.
   const crear = useCallback(
     async (d: DatosNuevaTarea) => {
-      const p = await crearTarea({ titulo: d.titulo, origenId: d.origenId, nota: d.nota, enFoco: d.paraHoy ? hoy : null })
+      const p = await crearTarea({ titulo: d.titulo, proyecto: d.proyecto, ambito, nota: d.nota, enFoco: d.paraHoy ? hoy : null })
       setDatos((prev) => {
         if (!prev) return prev
-        const sig = { ...prev, pendientes: [...prev.pendientes, p] }
+        const sig = { ...prev, sueltas: [...(prev.sueltas ?? []), p] }
         guardarCopia(sig)
         return sig
       })
       setCreando(false)
       mostrarAviso({ texto: d.paraHoy ? `Agregada a "para hoy": ${p.titulo}` : `Agregada: ${p.titulo}` })
     },
-    [hoy, mostrarAviso],
+    [hoy, ambito, mostrarAviso],
   )
   const cerrarCreando = useCallback(() => setCreando(false), [])
 
@@ -208,7 +214,8 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
   const ahora = new Date()
   const vistaHoy = useMemo(() => (datos ? construirHoy(datos, ambito, hoy) : null), [datos, ambito, hoy])
   const vistaSemana = useMemo(() => (datos ? construirSemana(datos, ambito, hoy) : null), [datos, ambito, hoy])
-  const detalle = detalleId && datos ? datos.pendientes.find((p) => p.id === detalleId) ?? null : null
+  const integrados = useMemo(() => (datos ? integrarSueltas(datos) : null), [datos])
+  const detalle = detalleId && integrados ? integrados.pendientes.find((p) => p.id === detalleId) ?? null : null
 
   const proyectos = useMemo(() => {
     if (!vistaHoy) return []
@@ -316,11 +323,11 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
         )}
       </div>
 
-      {detalle && datos && (
+      {detalle && integrados && (
         <HojaDetalle
           key={detalle.id}
           p={detalle}
-          auditoria={auditoriaDe(datos, detalle)}
+          auditoria={auditoriaDe(integrados, detalle)}
           onCerrar={() => setDetalleId(null)}
           onGuardarEvidencia={(texto) =>
             void cambiarPendiente(detalle, { evidencia: texto }).then(() => mostrarAviso({ texto: 'Evidencia guardada' }), () => {})
@@ -333,7 +340,7 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
       )}
 
       {creando && datos && vistaHoy && (
-        <NuevaTarea origenes={origenesSueltos(datos, ambito)} hayCupoHoy={!vistaHoy.lleno} onCrear={crear} onCerrar={cerrarCreando} />
+        <NuevaTarea proyectos={[...PROYECTOS]} ambito={ambito} hayCupoHoy={!vistaHoy.lleno} onCrear={crear} onCerrar={cerrarCreando} />
       )}
 
       {aviso && (

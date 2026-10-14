@@ -1,30 +1,40 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import type { Auditoria } from '../lib/tipos.ts'
+import type { Ambito } from '../lib/tipos.ts'
 
 export interface DatosNuevaTarea {
   titulo: string
-  origenId: string
+  proyecto: string
   nota: string
   paraHoy: boolean
 }
 
 /**
  * Hoja lateral para anotar una tarea espontánea ("me pidieron revisar…").
- * Va a "Tareas sueltas" del proyecto elegido; se cierra marcándola hecha como cualquier pendiente.
+ * Se guarda en la base "Tareas sueltas" de Notion; se cierra marcándola hecha como cualquier pendiente.
  */
+const CLAVE_ULTIMO = 'paperflow:ultimo-proyecto'
 export function NuevaTarea({
-  origenes,
+  proyectos,
+  ambito,
   hayCupoHoy,
   onCrear,
   onCerrar,
 }: {
-  origenes: Auditoria[]
+  proyectos: string[]
+  ambito: Ambito
   hayCupoHoy: boolean
   onCrear: (d: DatosNuevaTarea) => Promise<void>
   onCerrar: () => void
 }) {
   const [titulo, setTitulo] = useState('')
-  const [origenId, setOrigenId] = useState(origenes.length === 1 ? origenes[0].id : '')
+  const [proyecto, setProyecto] = useState(() => {
+    try {
+      const u = localStorage.getItem(CLAVE_ULTIMO)
+      return u && proyectos.includes(u) ? u : ''
+    } catch {
+      return ''
+    }
+  })
   const [nota, setNota] = useState('')
   const [paraHoy, setParaHoy] = useState(hayCupoHoy)
   const [enviando, setEnviando] = useState(false)
@@ -38,7 +48,7 @@ export function NuevaTarea({
     return () => document.removeEventListener('keydown', alTeclear)
   }, [onCerrar])
 
-  const listo = titulo.trim().length > 0 && origenId !== '' && !enviando
+  const listo = titulo.trim().length > 0 && proyecto !== '' && !enviando
 
   async function enviar(e: FormEvent) {
     e.preventDefault()
@@ -46,7 +56,12 @@ export function NuevaTarea({
     setEnviando(true)
     setError('')
     try {
-      await onCrear({ titulo: titulo.trim(), origenId, nota: nota.trim(), paraHoy: paraHoy && hayCupoHoy })
+      try {
+        localStorage.setItem(CLAVE_ULTIMO, proyecto)
+      } catch {
+        /* sin almacenamiento */
+      }
+      await onCrear({ titulo: titulo.trim(), proyecto, nota: nota.trim(), paraHoy: paraHoy && hayCupoHoy })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar en Notion')
       setEnviando(false)
@@ -66,11 +81,6 @@ export function NuevaTarea({
           ¿qué te pidieron?
         </h2>
 
-        {origenes.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 17, lineHeight: 1.5 }}>
-            No hay un origen "Tareas sueltas" en este ámbito. Pídele a Claude que lo cree en la base Auditorías.
-          </p>
-        ) : (
           <form onSubmit={enviar} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="campo">
               <label htmlFor="nueva-titulo" className="datos">
@@ -89,12 +99,12 @@ export function NuevaTarea({
 
             <fieldset className="campo" style={{ border: 0, padding: 0, margin: 0 }}>
               <legend className="datos" style={{ marginBottom: 6 }}>
-                proyecto
+                proyecto · {ambito.toLowerCase()}
               </legend>
               <div className="selector" style={{ alignSelf: 'flex-start', flexWrap: 'wrap' }}>
-                {origenes.map((o) => (
-                  <button key={o.id} type="button" aria-pressed={origenId === o.id} onClick={() => setOrigenId(o.id)}>
-                    {(o.proyecto ?? 'sin proyecto').toLowerCase()}
+                {proyectos.map((pr) => (
+                  <button key={pr} type="button" aria-pressed={proyecto === pr} onClick={() => setProyecto(pr)}>
+                    {pr.toLowerCase()}
                   </button>
                 ))}
               </div>
@@ -122,7 +132,6 @@ export function NuevaTarea({
               {enviando ? 'guardando…' : 'agregar'}
             </button>
           </form>
-        )}
       </aside>
     </div>
   )
