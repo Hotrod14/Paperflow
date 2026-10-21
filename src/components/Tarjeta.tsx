@@ -115,7 +115,10 @@ export function Tarjeta({ t, indice, lleno, acciones }: { t: TarjetaT; indice: n
                 aria-pressed={enHoy}
                 disabled={!enHoy && lleno}
                 title={!enHoy && lleno ? 'Ya elegiste 3 para hoy' : undefined}
-                onClick={() => acciones.alternarHoy(p)}
+                onClick={() => {
+                  pasarHoja()
+                  acciones.alternarHoy(p)
+                }}
               >
                 {enHoy ? 'en hoy' : '+ hoy'}
               </button>

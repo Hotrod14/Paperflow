@@ -1,7 +1,7 @@
 import type { Ambito, Pendiente } from '../lib/tipos.ts'
 import { MAX_PARA_HOY, type VistaHoy } from '../lib/vista.ts'
 import { diasHastaJueves, fechaLarga } from '../lib/fechas.ts'
-import { pasarHoja, trazoLapiz } from '../lib/sonido.ts'
+import { abrirTarea, pasarHoja, trazoLapiz } from '../lib/sonido.ts'
 import { Papel } from './Papel.tsx'
 import { Tarjeta, type AccionesTarjeta } from './Tarjeta.tsx'
 
@@ -9,7 +9,15 @@ export function SelectorAmbito({ ambito, onCambiar }: { ambito: Ambito; onCambia
   return (
     <div role="group" aria-label="Ámbito" className="selector">
       {(['Trabajo', 'Personal'] as const).map((a) => (
-        <button key={a} type="button" aria-pressed={ambito === a} onClick={() => onCambiar(a)}>
+        <button
+          key={a}
+          type="button"
+          aria-pressed={ambito === a}
+          onClick={() => {
+            pasarHoja()
+            onCambiar(a)
+          }}
+        >
           {a.toLowerCase()}
         </button>
       ))}
@@ -53,7 +61,14 @@ export function Hoy({
             </span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
-            <button type="button" className="btn-mano btn-nueva" onClick={onNuevaTarea}>
+            <button
+              type="button"
+              className="btn-mano btn-nueva"
+              onClick={() => {
+                abrirTarea()
+                onNuevaTarea()
+              }}
+            >
               + tarea suelta
             </button>
             <SelectorAmbito ambito={ambito} onCambiar={onCambiarAmbito} />

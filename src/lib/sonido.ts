@@ -43,14 +43,18 @@ function crearSonido(nombre: string, volumen: number) {
 
 const hoja = crearSonido('pasar-hoja', 0.6)
 const lapiz = crearSonido('lapiz', 0.5)
+const tarea = crearSonido('abrir-tarea', 1)
 
-/** Hoja pasando: navegar, desplegar o soltar. */
+/** Hoja pasando: navegar, cambiar de ámbito, desplegar, soltar o fijar en "hoy". */
 export const pasarHoja = hoja.reproducir
 /** Trazo de lápiz: casillas y "releer". */
 export const trazoLapiz = lapiz.reproducir
+/** Abrir la hoja de una tarea suelta nueva. */
+export const abrirTarea = tarea.reproducir
 
 /** Descarga los sonidos con anticipación para que el primer clic no llegue tarde. */
 export function precargarSonidos() {
   hoja.precargar()
   lapiz.precargar()
+  tarea.precargar()
 }
