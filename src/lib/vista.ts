@@ -323,7 +323,7 @@ export function guionOral(semana: VistaSemana, incluidos: Set<string>): string {
   const lineas: string[] = []
   for (const b of bloques) {
     lineas.push(`${b.numero} ${b.titulo}`)
-    lineas.push(b.cerrados.length ? `✅ Se cerraron ${b.cerrados.length}: ${b.cerrados.join('; ')}.` : '✅ Sin cierres esta semana.')
+    lineas.push(b.cerrados.length ? `✅ Se cerraron ${b.cerrados.length}: ${b.cerrados.join('; ')}.` : '💤 Sin cierres esta semana.')
     lineas.push(`📌 ${b.quedan}`)
     if (b.espera) lineas.push(`❓ Esperan decisión: ${b.espera}.`)
     lineas.push('')

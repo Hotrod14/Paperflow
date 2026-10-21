@@ -79,9 +79,19 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
           )
         )}
         {conEnlace && vista.bloques.length > 0 && (
-          <a href="#guion" className="btn-texto" style={{ alignSelf: 'flex-start', fontFamily: 'var(--manuscrita)', fontSize: 20 }}>
+          <button
+            type="button"
+            className="btn-texto"
+            style={{ alignSelf: 'flex-start', fontFamily: 'var(--manuscrita)', fontSize: 20 }}
+            onClick={() => {
+              // Sin tocar el hash: el hash decide la página (#hoy / #semana).
+              const destino = document.getElementById('guion')
+              destino?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              destino?.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true })
+            }}
+          >
             ir al guion ↓
-          </a>
+          </button>
         )}
       </div>
     </Papel>
@@ -153,7 +163,7 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
                       </ul>
                     </>
                   ) : (
-                    <span className="datos">✅ sin cierres esta semana</span>
+                    <span className="datos">💤 sin cierres esta semana</span>
                   )}
 
                   {b.sueltas ? (
@@ -181,7 +191,7 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
           <section id="guion" className="guion-seccion" aria-labelledby="guion-t">
             <div className="guion-seccion__cabecera">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <h2 id="guion-t" className="titulo-seccion">
+                <h2 id="guion-t" className="titulo-seccion" tabIndex={-1}>
                   guion oral
                 </h2>
                 <span className="datos" style={{ fontSize: 13 }}>
@@ -212,7 +222,7 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
                           {b.titulo}
                         </h3>
                         <p className="guion__linea">
-                          <span aria-hidden="true">✅</span>{' '}
+                          <span aria-hidden="true">{b.cerrados.length ? '✅' : '💤'}</span>{' '}
                           {b.cerrados.length ? `Se ${b.cerrados.length === 1 ? 'cerró' : 'cerraron'} ${b.cerrados.length}` : 'Sin cierres esta semana'}
                         </p>
                         {b.cerrados.length > 0 && (

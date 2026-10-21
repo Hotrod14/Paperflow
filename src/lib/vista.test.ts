@@ -208,6 +208,7 @@ describe('tareas sueltas', () => {
     expect(g).toContain('Ruta Digital · Tareas sueltas')
     expect(g).toContain('✅ Se cerraron 1: Links listos.')
     expect(g).toContain('📌 Quedan 1 tarea.')
+    expect(g).toContain('💤 Sin cierres esta semana.')
   })
 
   it('una tarea nueva solo acepta título, proyecto, ámbito, nota y "para hoy"', () => {
