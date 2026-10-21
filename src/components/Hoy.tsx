@@ -1,6 +1,7 @@
 import type { Ambito, Pendiente } from '../lib/tipos.ts'
 import { MAX_PARA_HOY, type VistaHoy } from '../lib/vista.ts'
 import { diasHastaJueves, fechaLarga } from '../lib/fechas.ts'
+import { pasarHoja, trazoLapiz } from '../lib/sonido.ts'
 import { Papel } from './Papel.tsx'
 import { Tarjeta, type AccionesTarjeta } from './Tarjeta.tsx'
 
@@ -76,7 +77,11 @@ export function Hoy({
                   className="casilla"
                   aria-pressed={hecho}
                   aria-label={hecho ? `Desmarcar: ${p.titulo}` : `Marcar como hecho: ${p.titulo}`}
-                  onClick={() => (hecho ? onDesmarcar(p) : acciones.marcarHecho(p))}
+                  onClick={() => {
+                    trazoLapiz()
+                    if (hecho) onDesmarcar(p)
+                    else acciones.marcarHecho(p)
+                  }}
                 >
                   <span style={{ borderColor: 'var(--tinta)' }}>{hecho ? '×' : ''}</span>
                 </button>
@@ -91,7 +96,15 @@ export function Hoy({
                   </div>
                 </div>
                 {!hecho && (
-                  <button type="button" className="btn-texto btn-texto--suave" aria-label={`Soltar de para hoy: ${p.titulo}`} onClick={() => acciones.alternarHoy(p)}>
+                  <button
+                    type="button"
+                    className="btn-texto btn-texto--suave"
+                    aria-label={`Soltar de para hoy: ${p.titulo}`}
+                    onClick={() => {
+                      pasarHoja()
+                      acciones.alternarHoy(p)
+                    }}
+                  >
                     soltar
                   </button>
                 )}
@@ -183,7 +196,7 @@ export function Hoy({
             <span className="suave" style={{ fontSize: 15, lineHeight: 1.45 }}>
               {dJueves === 0 ? 'Es hoy.' : `En ${dJueves} ${dJueves === 1 ? 'día' : 'días'}.`} Semana arma lo cerrado, lo abierto y lo detenido, y avisa si falta alguna auditoría.
             </span>
-            <a className="btn-mano" href="#semana" style={{ alignSelf: 'flex-start' }}>
+            <a className="btn-mano" href="#semana" style={{ alignSelf: 'flex-start' }} onClick={pasarHoja}>
               abrir semana
             </a>
           </div>

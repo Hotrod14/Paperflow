@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Pendiente } from '../lib/tipos.ts'
 import type { Tarjeta as TarjetaT } from '../lib/vista.ts'
 import { SIN_ORIGEN_ID } from '../lib/vista.ts'
+import { pasarHoja, trazoLapiz } from '../lib/sonido.ts'
 import { Papel } from './Papel.tsx'
 
 export interface AccionesTarjeta {
@@ -81,7 +82,15 @@ export function Tarjeta({ t, indice, lleno, acciones }: { t: TarjetaT; indice: n
         <ul className="lista-limpia" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {filas.map(({ p, esCritico, quieto, enHoy }) => (
             <li key={p.id} className="fila">
-              <button type="button" className="casilla" aria-label={`Marcar como hecho: ${p.titulo}`} onClick={() => acciones.marcarHecho(p)}>
+              <button
+                type="button"
+                className="casilla"
+                aria-label={`Marcar como hecho: ${p.titulo}`}
+                onClick={() => {
+                  trazoLapiz()
+                  acciones.marcarHecho(p)
+                }}
+              >
                 <span />
               </button>
               <div className="fila__cuerpo">
@@ -115,7 +124,16 @@ export function Tarjeta({ t, indice, lleno, acciones }: { t: TarjetaT; indice: n
         </ul>
 
         {t.filas.length > VISIBLES && (
-          <button type="button" className="btn-texto" style={{ alignSelf: 'flex-start' }} aria-expanded={verTodo} onClick={() => setVerTodo(!verTodo)}>
+          <button
+            type="button"
+            className="btn-texto"
+            style={{ alignSelf: 'flex-start' }}
+            aria-expanded={verTodo}
+            onClick={() => {
+              pasarHoja()
+              setVerTodo(!verTodo)
+            }}
+          >
             {verTodo ? 'ver menos' : `ver ${t.filas.length - VISIBLES} más`}
           </button>
         )}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Ambito } from '../lib/tipos.ts'
+import { trazoLapiz } from '../lib/sonido.ts'
 
 export interface DatosNuevaTarea {
   titulo: string
@@ -118,7 +119,16 @@ export function NuevaTarea({
             </div>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 17, minHeight: 44, cursor: hayCupoHoy ? 'pointer' : 'default' }}>
-              <input type="checkbox" checked={paraHoy && hayCupoHoy} disabled={!hayCupoHoy} onChange={(e) => setParaHoy(e.target.checked)} style={{ width: 20, height: 20 }} />
+              <input
+                type="checkbox"
+                checked={paraHoy && hayCupoHoy}
+                disabled={!hayCupoHoy}
+                onChange={(e) => {
+                  trazoLapiz()
+                  setParaHoy(e.target.checked)
+                }}
+                style={{ width: 20, height: 20 }}
+              />
               <span>{hayCupoHoy ? 'agregarla a "para hoy"' : '"para hoy" ya tiene 3; queda en su tarjeta'}</span>
             </label>
 

@@ -13,6 +13,7 @@ import { NuevaTarea, type DatosNuevaTarea } from './components/NuevaTarea.tsx'
 import type { AccionesTarjeta } from './components/Tarjeta.tsx'
 import { MenuUsuario } from './components/MenuUsuario.tsx'
 import { useApariencia } from './lib/tema.ts'
+import { pasarHoja, precargarSonidos, trazoLapiz } from './lib/sonido.ts'
 import { Analytics } from '@vercel/analytics/react'
 
 type Ruta = 'hoy' | 'semana'
@@ -89,6 +90,8 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
   const temporizador = useRef<number | undefined>(undefined)
 
   const hoy = fechaLocal()
+
+  useEffect(() => precargarSonidos(), [])
 
   // ---- Rutas por hash
   useEffect(() => {
@@ -247,10 +250,10 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
           <span className="marca" style={{ fontSize: 28 }}>
             paperflow
           </span>
-          <a className="nav-link" href="#hoy" aria-current={ruta === 'hoy' ? 'page' : undefined}>
+          <a className="nav-link" href="#hoy" aria-current={ruta === 'hoy' ? 'page' : undefined} onClick={pasarHoja}>
             hoy
           </a>
-          <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined}>
+          <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined} onClick={pasarHoja}>
             semana
           </a>
           {menu('derecha')}
@@ -263,10 +266,10 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
                 {menu('izquierda')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <a className="nav-link" href="#hoy" aria-current={ruta === 'hoy' ? 'page' : undefined}>
+                <a className="nav-link" href="#hoy" aria-current={ruta === 'hoy' ? 'page' : undefined} onClick={pasarHoja}>
                   hoy
                 </a>
-                <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined}>
+                <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined} onClick={pasarHoja}>
                   semana
                 </a>
               </div>
@@ -287,7 +290,16 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
                 <span aria-live="polite">
                   {cargando ? 'leyendo Notion…' : datos ? `notion leído ${haceCuanto(datos.leidoEn, ahora)}` : 'sin datos aún'}
                 </span>
-                <button type="button" className="btn-texto" style={{ alignSelf: 'flex-start' }} disabled={cargando} onClick={() => void cargar(true)}>
+                <button
+                  type="button"
+                  className="btn-texto"
+                  style={{ alignSelf: 'flex-start' }}
+                  disabled={cargando}
+                  onClick={() => {
+                    trazoLapiz()
+                    void cargar(true)
+                  }}
+                >
                   releer
                 </button>
               </div>

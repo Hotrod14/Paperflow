@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Ambito } from '../lib/tipos.ts'
 import { guionOral, type VistaSemana } from '../lib/vista.ts'
+import { trazoLapiz } from '../lib/sonido.ts'
 import { Papel } from './Papel.tsx'
 import { SelectorAmbito } from './Hoy.tsx'
 
@@ -143,7 +144,14 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
             <legend style={{ fontSize: 15, fontWeight: 700, padding: 0, marginBottom: 6 }}>¿está todo?</legend>
             {vista.bloques.map((b) => (
               <label key={b.auditoria.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, minHeight: 32, cursor: 'pointer' }}>
-                <input type="checkbox" checked={incluidos.has(b.auditoria.id)} onChange={() => alternar(b.auditoria.id)} />
+                <input
+                  type="checkbox"
+                  checked={incluidos.has(b.auditoria.id)}
+                  onChange={() => {
+                    trazoLapiz()
+                    alternar(b.auditoria.id)
+                  }}
+                />
                 <span>{b.sueltas ? `Tareas sueltas · ${b.auditoria.proyecto ?? ''}` : b.auditoria.nombre}</span>
               </label>
             ))}
