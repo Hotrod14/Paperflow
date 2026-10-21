@@ -75,7 +75,7 @@
 }
 
 /* ---------- Fondos de la mesa (Ajustes) ----------
-   Solo cambian la mesa, el ticket y la ramita; el papel y la tinta se mantienen.
+   Solo cambian la mesa, el ticket y la ramita; el papel y la tinta se mantienen (salvo nogal, más abajo).
    Madera claro oscurece un poco la tinta secundaria para conservar contraste AA sobre la mesa. */
 :root[data-fondo='cafe'] { --mesa: #dcc9ad; --ticket: #eadcc4; --hoja-verde: #7d6a4f; }
 :root[data-fondo='madera'] {
@@ -108,6 +108,32 @@
     repeating-linear-gradient(91deg, rgba(255, 220, 170, 0.025) 0 1px, transparent 1px 7px);
 }
 :root[data-tema='oscuro'][data-fondo='pizarra'] { --mesa: #1c2127; --ticket: #232a32; --hoja-verde: #4a5866; }
+
+/* Nogal: foto de madera oscura (public/fondos). --mesa es su color medio, para que no parpadee mientras carga.
+   En oscuro basta la paleta de siempre. En claro el texto que queda directo sobre la mesa pasa a tinta clara
+   y las hojas (y lo que tiene su propio fondo claro) recuperan la tinta oscura. */
+:root[data-fondo='nogal'] { --mesa: #2f1a11; --mesa-textura: url('/fondos/nogal.jpg'); }
+:root[data-fondo='nogal'] body { background-size: cover; background-position: center; }
+
+:root[data-tema='claro'][data-fondo='nogal'] {
+  --tinta: #eee8da; --tinta-2: #c1baa8; --critico: #e8957a; --secundario: #e6bd62; --azul: #a9c1eb;
+  --sombra: rgba(0, 0, 0, 0.55);
+}
+:root[data-tema='claro'][data-fondo='nogal'] :is(.papel, .selector, .banda, .aviso, .avatar, .tema) {
+  --tinta: #25241f; --tinta-2: #57544a; --critico: #a0432a; --secundario: #7b5a12; --azul: #2c4877;
+}
+/* El color se hereda ya calculado desde body: la hoja tiene que volver a pedirlo con su tinta. */
+:root[data-tema='claro'][data-fondo='nogal'] .papel { color: var(--tinta); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema='oscuro'])[data-fondo='nogal'] {
+    --tinta: #eee8da; --tinta-2: #c1baa8; --critico: #e8957a; --secundario: #e6bd62; --azul: #a9c1eb;
+    --sombra: rgba(0, 0, 0, 0.55);
+  }
+  :root:not([data-tema='oscuro'])[data-fondo='nogal'] :is(.papel, .selector, .banda, .aviso, .avatar, .tema) {
+    --tinta: #25241f; --tinta-2: #57544a; --critico: #a0432a; --secundario: #7b5a12; --azul: #2c4877;
+  }
+  :root:not([data-tema='oscuro'])[data-fondo='nogal'] .papel { color: var(--tinta); }
+}
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }

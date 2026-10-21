@@ -127,7 +127,15 @@ export function MenuUsuario({
             <div role="group" aria-labelledby="menu-ajustes" className="fondos">
               {FONDOS.map((f) => (
                 <button key={f.id} type="button" className="fondo" aria-pressed={fondo === f.id} onClick={() => onFondo(f.id)}>
-                  <span className="fondo__muestra" data-muestra={f.id} style={{ background: f.muestra[tema] }} aria-hidden="true">
+                  <span
+                    className="fondo__muestra"
+                    data-muestra={f.id}
+                    style={{
+                      backgroundColor: f.muestra[tema],
+                      ...(f.imagen && { backgroundImage: `url(${f.imagen})`, backgroundSize: 'cover', backgroundPosition: 'center' }),
+                    }}
+                    aria-hidden="true"
+                  >
                     <span className="fondo__hoja" />
                   </span>
                   <span className="fondo__nombre">{f.nombre}</span>
