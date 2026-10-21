@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Ambito } from '../lib/tipos.ts'
-import { guionOral, type VistaSemana } from '../lib/vista.ts'
+import { guionEstructura, guionOral, type VistaSemana } from '../lib/vista.ts'
 import { trazoLapiz } from '../lib/sonido.ts'
 import { Papel } from './Papel.tsx'
 import { SelectorAmbito } from './Hoy.tsx'
@@ -27,6 +27,7 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
 
   const faltan = vista.bloques.filter((b) => !incluidos.has(b.auditoria.id))
   const guion = guionOral(vista, incluidos)
+  const estructura = guionEstructura(vista, incluidos)
 
   function alternar(id: string) {
     setIncluidos((prev) => {
@@ -46,6 +47,45 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
       setCopiado(false)
     }
   }
+
+  const chequeo = (conEnlace: boolean) => (
+    <Papel variante="ticket" borde="b" girar={0.4}>
+      <div className="ticket" role="group" aria-labelledby={`esta-todo-${conEnlace ? 'a' : 'b'}`}>
+        <span id={`esta-todo-${conEnlace ? 'a' : 'b'}`} style={{ fontSize: 15, fontWeight: 700 }}>
+          ¿está todo?
+        </span>
+        {vista.bloques.map((b) => (
+          <label key={b.auditoria.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, minHeight: 32, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={incluidos.has(b.auditoria.id)}
+              onChange={() => {
+                trazoLapiz()
+                alternar(b.auditoria.id)
+              }}
+            />
+            <span>{b.sueltas ? `Tareas sueltas · ${b.auditoria.proyecto ?? ''}` : b.auditoria.nombre}</span>
+          </label>
+        ))}
+        {faltan.length > 0 ? (
+          <p role="status" style={{ margin: '8px 0 0', fontSize: 14, color: 'var(--critico)' }}>
+            {faltan.length === 1 ? 'falta 1 auditoría' : `faltan ${faltan.length} auditorías`} en el reporte
+          </p>
+        ) : (
+          vista.bloques.length > 0 && (
+            <p role="status" style={{ margin: '8px 0 0', fontSize: 14 }}>
+              todas incluidas
+            </p>
+          )
+        )}
+        {conEnlace && vista.bloques.length > 0 && (
+          <a href="#guion" className="btn-texto" style={{ alignSelf: 'flex-start', fontFamily: 'var(--manuscrita)', fontSize: 20 }}>
+            ir al guion ↓
+          </a>
+        )}
+      </div>
+    </Papel>
+  )
 
   return (
     <>
@@ -136,52 +176,78 @@ export function Semana({ vista, ambito, onCambiarAmbito }: { vista: VistaSemana;
             )
           })
         )}
-      </div>
 
-      <aside className="columna-lateral" aria-label="Preparar reporte">
-        <Papel variante="ticket" borde="b" girar={0.4}>
-          <fieldset className="ticket" style={{ border: 0, margin: 0 }}>
-            <legend style={{ fontSize: 15, fontWeight: 700, padding: 0, marginBottom: 6 }}>¿está todo?</legend>
-            {vista.bloques.map((b) => (
-              <label key={b.auditoria.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, minHeight: 32, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={incluidos.has(b.auditoria.id)}
-                  onChange={() => {
-                    trazoLapiz()
-                    alternar(b.auditoria.id)
-                  }}
-                />
-                <span>{b.sueltas ? `Tareas sueltas · ${b.auditoria.proyecto ?? ''}` : b.auditoria.nombre}</span>
-              </label>
-            ))}
-            {faltan.length > 0 ? (
-              <p role="status" style={{ margin: '8px 0 0', fontSize: 14, color: 'var(--critico)' }}>
-                {faltan.length === 1 ? 'falta 1 auditoría' : `faltan ${faltan.length} auditorías`} en el reporte
-              </p>
-            ) : (
-              vista.bloques.length > 0 && (
-                <p role="status" style={{ margin: '8px 0 0', fontSize: 14 }}>
-                  todas incluidas
-                </p>
-              )
-            )}
-          </fieldset>
-        </Papel>
-
-        <Papel variante="rayado" borde="a" girar={-0.4}>
-          <div className="nota-lateral">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-              <span className="manuscrita" style={{ fontSize: 26, fontWeight: 700, lineHeight: 1 }}>
-                guion oral
-              </span>
+        {vista.bloques.length > 0 && (
+          <section id="guion" className="guion-seccion" aria-labelledby="guion-t">
+            <div className="guion-seccion__cabecera">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <h2 id="guion-t" className="titulo-seccion">
+                  guion oral
+                </h2>
+                <span className="datos" style={{ fontSize: 13 }}>
+                  para el jueves · léelo bloque por bloque
+                </span>
+              </div>
               <button type="button" className="btn-mano" onClick={copiar} disabled={!guion}>
-                {copiado ? 'copiado' : 'copiar'}
+                {copiado ? 'copiado' : 'copiar guion'}
               </button>
             </div>
-            <pre className="guion">{guion || 'marca al menos una auditoría.'}</pre>
-          </div>
-        </Papel>
+
+            <div className="solo-movil">{chequeo(false)}</div>
+
+            <Papel variante="rayado" borde="a" girar={-0.15}>
+              <div className="guion">
+                {estructura.bloques.length === 0 && !estructura.detenidas.length ? (
+                  <p className="manuscrita suave" style={{ fontSize: 22, margin: 0 }}>
+                    marca al menos una auditoría en "¿está todo?".
+                  </p>
+                ) : (
+                  <ol className="lista-limpia guion__lista">
+                    {estructura.bloques.map((b) => (
+                      <li key={b.id} className="guion__bloque">
+                        <h3 className="guion__titulo">
+                          <span aria-hidden="true" className="guion__numero">
+                            {b.numero}
+                          </span>
+                          {b.titulo}
+                        </h3>
+                        <p className="guion__linea">
+                          <span aria-hidden="true">✅</span>{' '}
+                          {b.cerrados.length ? `Se ${b.cerrados.length === 1 ? 'cerró' : 'cerraron'} ${b.cerrados.length}` : 'Sin cierres esta semana'}
+                        </p>
+                        {b.cerrados.length > 0 && (
+                          <ul className="guion__cerrados">
+                            {b.cerrados.map((c, i) => (
+                              <li key={i}>{c}</li>
+                            ))}
+                          </ul>
+                        )}
+                        <p className="guion__linea">
+                          <span aria-hidden="true">📌</span> {b.quedan}
+                        </p>
+                        {b.espera > 0 && (
+                          <p className="guion__linea">
+                            <span aria-hidden="true">❓</span> Esperan decisión: {b.espera}.
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {estructura.detenidas.length > 0 && (
+                  <p className="guion__detenido">
+                    <span aria-hidden="true">⏸️</span> Detenido: {estructura.detenidas.join(', ')}.
+                  </p>
+                )}
+              </div>
+            </Papel>
+          </section>
+        )}
+      </div>
+
+      <aside className="columna-lateral solo-escritorio" aria-label="Preparar reporte">
+        {chequeo(true)}
+
       </aside>
     </>
   )

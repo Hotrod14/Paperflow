@@ -231,10 +231,10 @@ a { color: var(--azul); }
 .sugerencia { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1.5px dashed var(--secundario); border-radius: 10px 16px 12px 14px; font-size: 15px; }
 
 /* ---------- Ticket y notas laterales ---------- */
-.ticket { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; font-family: var(--datos); transform: rotate(0.4deg); }
+.ticket { padding: 26px 22px 22px; display: flex; flex-direction: column; gap: 10px; font-family: var(--datos); transform: rotate(0.4deg); }
 .ticket__fila { display: flex; align-items: baseline; gap: 6px; font-size: 14px; }
 .ticket__puntos { flex: 1; border-bottom: 1.5px dotted var(--linea-2); transform: translateY(-3px); }
-.nota-lateral { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 8px; transform: rotate(-0.5deg); }
+.nota-lateral { padding: 24px 22px 20px; display: flex; flex-direction: column; gap: 8px; transform: rotate(-0.5deg); }
 
 /* ---------- Hoja lateral (detalle) ---------- */
 .velo { position: fixed; inset: 0; background: rgba(20, 18, 12, 0.35); z-index: 20; display: flex; justify-content: flex-end; }
@@ -250,7 +250,21 @@ a { color: var(--azul); }
 
 /* ---------- Semana ---------- */
 .bloque-semana { padding: 20px 22px; display: flex; flex-direction: column; gap: 8px; }
-.guion { white-space: pre-wrap; font-family: var(--lectura); font-size: 18px; line-height: 1.55; margin: 0; }
+.solo-movil { display: none; }
+.guion-seccion { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; scroll-margin-top: 24px; }
+.guion-seccion__cabecera .titulo-seccion { margin-bottom: 4px; }
+.guion-seccion__cabecera { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.guion { padding: 30px clamp(20px, 4vw, 44px) 32px; font-family: var(--lectura); }
+.guion__lista { display: flex; flex-direction: column; gap: 0; }
+.guion__bloque { display: flex; flex-direction: column; gap: 8px; padding: 22px 0; max-width: 72ch; }
+.guion__bloque:first-child { padding-top: 0; }
+.guion__bloque + .guion__bloque { border-top: 1px dashed var(--linea-2); }
+.guion__titulo { margin: 0 0 4px; display: flex; gap: 10px; align-items: baseline; font-size: 22px; font-weight: 600; line-height: 1.3; }
+.guion__numero { flex: none; font-size: 20px; }
+.guion__linea { margin: 0; font-size: 18px; line-height: 1.5; }
+.guion__cerrados { margin: 0 0 4px; padding-left: 30px; display: flex; flex-direction: column; gap: 6px; font-size: 16px; line-height: 1.45; color: var(--tinta-2); }
+.guion__cerrados li::marker { color: var(--linea-2); }
+.guion__detenido { margin: 20px 0 0; padding-top: 18px; border-top: 1px dashed var(--linea-2); font-size: 18px; line-height: 1.5; }
 
 /* ---------- Celular ---------- */
 .nav-movil { display: none; }
@@ -289,5 +303,7 @@ a { color: var(--azul); }
   .nav-movil .tema button { min-width: 36px; padding: 0 6px; min-height: 34px; }
   .columna-nav { order: 3; }
   .columna-lateral { order: 2; }
+  .solo-escritorio { display: none !important; }
+  .solo-movil { display: block !important; }
   .ramita { display: none; }
 }

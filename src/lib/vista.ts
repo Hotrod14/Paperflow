@@ -274,22 +274,27 @@ export function construirSemana(crudos: Datos, ambito: Ambito, hoy: string, ahor
 
 const NUMEROS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
 
+export interface BloqueGuion {
+  id: string
+  numero: string
+  titulo: string
+  cerrados: string[]
+  quedan: string
+  espera: number
+}
+
+export interface Guion {
+  bloques: BloqueGuion[]
+  detenidas: string[]
+}
+
 /**
- * Guion para el reporte oral: bloques cortos, uno por idea, numerados.
- * `incluidos` son los ids de auditorías que marqué para el reporte.
+ * Estructura del reporte oral: un bloque por auditoría incluida y no detenida,
+ * y al final la lista de lo detenido. `incluidos` son los ids marcados en "¿está todo?".
  */
-export function guionOral(semana: VistaSemana, incluidos: Set<string>): string {
-  const lineas: string[] = []
+export function guionEstructura(semana: VistaSemana, incluidos: Set<string>): Guion {
   const activos = semana.bloques.filter((b) => incluidos.has(b.auditoria.id) && !b.detenida)
-  activos.forEach((b, i) => {
-    const n = NUMEROS[i] ?? `${i + 1}.`
-    const titulo = `${n} ${b.auditoria.proyecto ? b.auditoria.proyecto + ' · ' : ''}${b.auditoria.nombre}`
-    lineas.push(titulo)
-    if (b.cerrados.length) {
-      lineas.push(`✅ Se cerraron ${b.cerrados.length}: ${b.cerrados.map((p) => p.titulo).join('; ')}.`)
-    } else {
-      lineas.push('✅ Sin cierres esta semana.')
-    }
+  const bloques = activos.map((b, i): BloqueGuion => {
     const quedan: string[] = []
     if (b.sueltas) {
       if (b.secundarios) quedan.push(`${b.secundarios} ${b.secundarios === 1 ? 'tarea' : 'tareas'}`)
@@ -297,13 +302,32 @@ export function guionOral(semana: VistaSemana, incluidos: Set<string>): string {
       if (b.criticos) quedan.push(`${b.criticos} ${b.criticos === 1 ? 'crítico' : 'críticos'}`)
       if (b.secundarios) quedan.push(`${b.secundarios} ${b.secundarios === 1 ? 'secundario' : 'secundarios'}`)
     }
-    lineas.push(quedan.length ? `📌 Quedan ${quedan.join(' y ')}.` : '📌 No quedan pendientes.')
-    if (b.espera.length) lineas.push(`❓ Esperan decisión: ${b.espera.length}.`)
-    lineas.push('')
+    return {
+      id: b.auditoria.id,
+      numero: NUMEROS[i] ?? `${i + 1}.`,
+      titulo: `${b.auditoria.proyecto ? b.auditoria.proyecto + ' · ' : ''}${b.auditoria.nombre}`,
+      cerrados: b.cerrados.map((p) => p.titulo),
+      quedan: quedan.length ? `Quedan ${quedan.join(' y ')}.` : 'No quedan pendientes.',
+      espera: b.espera.length,
+    }
   })
-  const detenidas = semana.bloques.filter((b) => incluidos.has(b.auditoria.id) && b.detenida)
-  if (detenidas.length) {
-    lineas.push(`⏸️ Detenido: ${detenidas.map((b) => (b.sueltas ? `${b.auditoria.nombre} de ${b.auditoria.proyecto ?? 'sin proyecto'}` : b.auditoria.nombre)).join(', ')}.`)
+  const detenidas = semana.bloques
+    .filter((b) => incluidos.has(b.auditoria.id) && b.detenida)
+    .map((b) => (b.sueltas ? `${b.auditoria.nombre} de ${b.auditoria.proyecto ?? 'sin proyecto'}` : b.auditoria.nombre))
+  return { bloques, detenidas }
+}
+
+/** Guion en texto plano, para copiar: bloques cortos, uno por idea, numerados. */
+export function guionOral(semana: VistaSemana, incluidos: Set<string>): string {
+  const { bloques, detenidas } = guionEstructura(semana, incluidos)
+  const lineas: string[] = []
+  for (const b of bloques) {
+    lineas.push(`${b.numero} ${b.titulo}`)
+    lineas.push(b.cerrados.length ? `✅ Se cerraron ${b.cerrados.length}: ${b.cerrados.join('; ')}.` : '✅ Sin cierres esta semana.')
+    lineas.push(`📌 ${b.quedan}`)
+    if (b.espera) lineas.push(`❓ Esperan decisión: ${b.espera}.`)
+    lineas.push('')
   }
+  if (detenidas.length) lineas.push(`⏸️ Detenido: ${detenidas.join(', ')}.`)
   return lineas.join('\n').trim()
 }
