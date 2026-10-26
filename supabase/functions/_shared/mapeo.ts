@@ -32,6 +32,13 @@ export const PROP = {
     enFoco: 'En foco',
     cerradoPor: 'Cerrado por',
   },
+  // Base "Cuaderno de notas".
+  nota: {
+    titulo: 'Título',
+    contenido: 'Contenido',
+    proyecto: 'Proyecto',
+    fijada: 'Fijada',
+  },
   // Base "Tareas sueltas": mismos nombres que Pendientes para estado, fechas, nota y cierre.
   sue: {
     titulo: 'Tarea',
@@ -294,5 +301,82 @@ export function propiedadesNuevaTarea(n: Record<string, unknown>): Record<string
   }
   if (nota.trim()) props[PROP.sue.nota] = { rich_text: [{ text: { content: nota.trim() } }] }
   if (enFoco) props[PROP.sue.enFoco] = { date: { start: enFoco } }
+  return props
+}
+
+// ---------------------------------------------------------------- Cuaderno de notas
+
+export const PROYECTOS_NOTA = ['General', ...PROYECTOS] as const
+/** Notion entrega hasta 25 trozos por propiedad de texto: 10 trozos de 2000 caracteres caben de sobra. */
+export const MAX_CONTENIDO_NOTA = 20000
+const TROZO = 2000
+
+export interface Nota {
+  id: string
+  titulo: string
+  contenido: string
+  proyecto: string
+  fijada: boolean
+  creada: string
+  editada: string
+  notionUrl: string
+}
+
+export function aNota(pg: Pagina): Nota {
+  const p = pg.properties
+  return {
+    id: pg.id,
+    titulo: texto(p[PROP.nota.titulo]),
+    contenido: texto(p[PROP.nota.contenido]),
+    proyecto: seleccion(p[PROP.nota.proyecto]) ?? 'General',
+    fijada: casilla(p[PROP.nota.fijada]),
+    // deno-lint-ignore no-explicit-any
+    creada: (pg as any).created_time ?? pg.last_edited_time,
+    editada: pg.last_edited_time,
+    notionUrl: pg.url,
+  }
+}
+
+const enTrozos = (s: string) => {
+  const trozos: { text: { content: string } }[] = []
+  for (let i = 0; i < s.length; i += TROZO) trozos.push({ text: { content: s.slice(i, i + TROZO) } })
+  return trozos
+}
+
+export interface CambiosNota {
+  titulo?: string
+  contenido?: string
+  proyecto?: string
+  fijada?: boolean
+}
+
+/** Propiedades de una nota (nueva o editada). Solo título, contenido, proyecto y fijada. */
+// deno-lint-ignore no-explicit-any
+export function propiedadesNota(c: Record<string, unknown>, nueva = false): Record<string, any> {
+  const permitidos = ['titulo', 'contenido', 'proyecto', 'fijada']
+  const extra = Object.keys(c).filter((k) => !permitidos.includes(k))
+  if (extra.length) throw new ErrorCambios(`Campos no permitidos: ${extra.join(', ')}`)
+  if (!nueva && !Object.keys(c).length) throw new ErrorCambios('Sin cambios')
+
+  // deno-lint-ignore no-explicit-any
+  const props: Record<string, any> = {}
+  if ('titulo' in c || nueva) {
+    const titulo = c.titulo === undefined ? '' : c.titulo
+    if (typeof titulo !== 'string' || titulo.length > 200) throw new ErrorCambios('titulo: texto de hasta 200 caracteres')
+    props[PROP.nota.titulo] = { title: titulo.trim() ? [{ text: { content: titulo.trim() } }] : [] }
+  }
+  if ('contenido' in c) {
+    if (typeof c.contenido !== 'string' || c.contenido.length > MAX_CONTENIDO_NOTA) {
+      throw new ErrorCambios(`contenido: texto de hasta ${MAX_CONTENIDO_NOTA} caracteres`)
+    }
+    props[PROP.nota.contenido] = { rich_text: enTrozos(c.contenido) }
+  }
+  if ('proyecto' in c || nueva) {
+    props[PROP.nota.proyecto] = { select: { name: validarOpcion(c.proyecto ?? 'General', PROYECTOS_NOTA, 'proyecto') } }
+  }
+  if ('fijada' in c) {
+    if (typeof c.fijada !== 'boolean') throw new ErrorCambios('fijada: debe ser verdadero o falso')
+    props[PROP.nota.fijada] = { checkbox: c.fijada }
+  }
   return props
 }

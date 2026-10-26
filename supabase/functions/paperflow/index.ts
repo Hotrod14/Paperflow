@@ -7,6 +7,10 @@
 //   { accion: "actualizarAuditoria", id, cambios }
 //   { accion: "crearTarea", nueva: { titulo, proyecto, ambito, nota?, enFoco? } }
 //       → crea una fila en la base "Tareas sueltas"
+//   { accion: "leerNotas" }                              → notas del cuaderno
+//   { accion: "crearNota", nota: { titulo?, contenido?, proyecto?, fijada? } }
+//   { accion: "actualizarNota", id, cambios }
+//   { accion: "eliminarNota", id } / { accion: "restaurarNota", id }  → papelera de Notion
 //
 // No guarda datos propios: solo una caché en memoria de 45 s por
 // instancia, que se invalida en cada escritura.
@@ -16,7 +20,10 @@ import { ErrorHttp, errorARespuesta, json, preflight } from '../_shared/respuest
 import {
   actualizarPagina,
   consultarTodo,
+  aPapelera,
   crearPagina,
+  DB_NOTAS,
+  DS_NOTAS,
   DB_AUDITORIAS,
   DB_PENDIENTES,
   DS_AUDITORIAS,
@@ -27,7 +34,9 @@ import {
 import {
   aAuditoria,
   aPendiente,
+  aNota,
   aTareaSuelta,
+  propiedadesNota,
   ErrorCambios,
   PROP,
   propiedadesNuevaTarea,
@@ -120,6 +129,43 @@ Deno.serve(async (req) => {
       const creada: any = await crearPagina(DS_SUELTAS, props)
       cache = null
       return json(req, aTareaSuelta(creada))
+    }
+
+    // ---- Cuaderno de notas
+    const BASE_NOTAS = [{ dataSource: DS_NOTAS, database: DB_NOTAS }]
+    const conCambios = <T>(f: () => T): T => {
+      try {
+        return f()
+      } catch (e) {
+        if (e instanceof ErrorCambios) throw new ErrorHttp(e.message)
+        throw e
+      }
+    }
+
+    if (body?.accion === 'leerNotas') {
+      const notas = await consultarTodo(DS_NOTAS)
+      return json(req, { notas: notas.map(aNota) })
+    }
+
+    if (body?.accion === 'crearNota') {
+      if (!body.nota || typeof body.nota !== 'object') throw new ErrorHttp('nota inválida')
+      const props = conCambios(() => propiedadesNota(body.nota, true))
+      // deno-lint-ignore no-explicit-any
+      const creada: any = await crearPagina(DS_NOTAS, props)
+      return json(req, aNota(creada))
+    }
+
+    if (body?.accion === 'actualizarNota' || body?.accion === 'eliminarNota' || body?.accion === 'restaurarNota') {
+      if (typeof body.id !== 'string' || !ID_RE.test(body.id)) throw new ErrorHttp('id inválido')
+      if (body.accion === 'actualizarNota') {
+        if (!body.cambios || typeof body.cambios !== 'object') throw new ErrorHttp('cambios inválidos')
+        const props = conCambios(() => propiedadesNota(body.cambios))
+        // deno-lint-ignore no-explicit-any
+        const pagina: any = await actualizarPagina(body.id, BASE_NOTAS, props)
+        return json(req, aNota(pagina))
+      }
+      await aPapelera(body.id, BASE_NOTAS, body.accion === 'eliminarNota')
+      return json(req, { ok: true })
     }
 
     throw new ErrorHttp('Acción desconocida')

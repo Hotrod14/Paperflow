@@ -20,6 +20,10 @@ export const DB_PENDIENTES = Deno.env.get('NOTION_DB_PENDIENTES') ?? 'df3a9d5b94
 export const DS_SUELTAS = Deno.env.get('NOTION_DS_SUELTAS') ?? '14c8c58e-ba0c-4235-88f8-39727f4de2f6'
 export const DB_SUELTAS = Deno.env.get('NOTION_DB_SUELTAS') ?? 'd50a9894a07d45a98cae3120e4e4b59b'
 
+// Base "Cuaderno de notas".
+export const DS_NOTAS = Deno.env.get('NOTION_DS_NOTAS') ?? '7c71f03f-62c5-4f63-8213-a2bd1bb256a4'
+export const DB_NOTAS = Deno.env.get('NOTION_DB_NOTAS') ?? 'a807771f406b43f29a2e95f007b0f411'
+
 export type Base = { dataSource: string; database: string }
 
 const sinGuiones = (id: string) => id.replace(/-/g, '').toLowerCase()
@@ -101,4 +105,10 @@ export function crearPagina(dataSource: string, propiedades: unknown) {
     method: 'POST',
     body: JSON.stringify({ parent: { type: 'data_source_id', data_source_id: dataSource }, properties: propiedades }),
   })
+}
+
+/** Manda una página a la papelera de Notion (o la saca de ahí). Se puede recuperar. */
+export async function aPapelera(pageId: string, esperado: Base[], enPapelera: boolean) {
+  await paginaDe(pageId, esperado)
+  return notion(`/pages/${pageId}`, { method: 'PATCH', body: JSON.stringify({ in_trash: enPapelera }) })
 }

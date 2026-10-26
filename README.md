@@ -18,14 +18,17 @@ Navegador (React, Vercel)
 Supabase Edge Function `paperflow`
    │  token de Notion (solo vive aquí)
    ▼
-Notion · bases "Auditorías", "Pendientes" y "Tareas sueltas"
+Notion · bases "Auditorías", "Pendientes", "Tareas sueltas" y "Cuaderno de notas"
 ```
 
-- La función acepta cuatro acciones: `leer`, `actualizarPendiente`, `actualizarAuditoria` y `crearTarea`.
+- Acciones de la función:
+  - tareas: `leer`, `actualizarPendiente`, `actualizarAuditoria` y `crearTarea`
+  - cuaderno: `leerNotas`, `crearNota`, `actualizarNota`, `eliminarNota` y `restaurarNota`
 - `crearTarea` solo crea filas en la base **"Tareas sueltas"** (separada de Auditorías y Pendientes).
 - Solo se pueden escribir estos campos:
   - pendiente o tarea suelta: Estado, Fecha de cierre, Cerrado por, Evidencia, En foco (y Avisado a diseño en pendientes)
   - auditoría: Estado
+  - nota: Título, Contenido (hasta 20.000 caracteres), Proyecto, Fijada
 - Antes de escribir, verifica que la página pertenezca a las bases de Paperflow.
 - Si Notion no responde, la app muestra la última copia guardada en el navegador.
 
@@ -34,10 +37,10 @@ Notion · bases "Auditorías", "Pendientes" y "Tareas sueltas"
 ### 1. Notion
 
 1. Crea una integración interna en <https://www.notion.so/profile/integrations>.
-   - Capacidades: leer, actualizar e **insertar** contenido (insertar se usa solo para crear tareas sueltas).
+   - Capacidades: leer, actualizar e **insertar** contenido (insertar se usa solo para crear tareas sueltas y notas).
 2. Copia el token (`ntn_…`) a tu gestor de contraseñas. Nunca lo pegues en una página de Notion.
 3. En la página **Paperflow — Auditorías y pendientes** (en *Journal*), abre `···` → *Conexiones* y agrega la integración.
-   - Esa página contiene las tres bases; así quedan compartidas todas.
+   - Esa página contiene todas las bases; así quedan compartidas todas.
 
 ### 2. Supabase
 
@@ -68,6 +71,7 @@ Variables opcionales, ya tienen valor por defecto:
 | `NOTION_DS_AUDITORIAS` / `NOTION_DS_PENDIENTES` | IDs de data source |
 | `NOTION_DB_AUDITORIAS` / `NOTION_DB_PENDIENTES` | IDs de base de datos |
 | `NOTION_DS_SUELTAS` / `NOTION_DB_SUELTAS` | Base "Tareas sueltas" |
+| `NOTION_DS_NOTAS` / `NOTION_DB_NOTAS` | Base "Cuaderno de notas" |
 
 ### 3. Vercel
 
@@ -117,3 +121,14 @@ Los proyectos disponibles son las opciones de la propiedad Proyecto (Kefuri, Rut
 - **Quieto** significa sin movimiento por más de 14 días.
 - Si los datos lo indican, la tarjeta sugiere *Crítico ejecutado* o *Todo ejecutado*. Tú decides si marcarlo.
 - Un pendiente sin auditoría de origen aparece en la tarjeta "revisar origen". Nunca se pierde.
+
+## Cuaderno de notas
+
+Pestaña **cuaderno** (`#cuaderno`): notas para organizarse, guardadas en la base **"Cuaderno de notas"** de Notion (Título, Contenido, Proyecto, Fijada).
+
+- **+ nueva nota** abre una hoja en blanco. `Ctrl/Cmd + S` guarda y `Esc` cancela.
+- El menú `···` de cada hoja permite editar, fijar arriba y arrancar la hoja (eliminar).
+- Doble clic sobre la hoja también la abre para editar.
+- Eliminar manda la página a la papelera de Notion. El aviso trae **deshacer**, y la nota también se puede recuperar desde la papelera.
+- El índice busca sin distinguir tildes y filtra por proyecto. Las notas fijadas van primero.
+- Sonidos: abrir hoja, pasar hoja, trazo de lápiz al guardar y hoja arrancada al eliminar.

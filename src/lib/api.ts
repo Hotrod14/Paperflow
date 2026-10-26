@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Ambito, CambiosAuditoria, CambiosPendiente, Datos, TareaSuelta } from './tipos.ts'
+import type { Ambito, CambiosAuditoria, CambiosNota, CambiosPendiente, Datos, Nota, TareaSuelta } from './tipos.ts'
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -38,6 +38,30 @@ export const actualizarAuditoria = (id: string, cambios: CambiosAuditoria) =>
 
 export const crearTarea = (nueva: { titulo: string; proyecto: string; ambito: Ambito; nota?: string; enFoco?: string | null }) =>
   llamar<TareaSuelta>({ accion: 'crearTarea', nueva })
+
+// ---- Cuaderno de notas
+export const leerNotas = () => llamar<{ notas: Nota[] }>({ accion: 'leerNotas' }).then((r) => r.notas)
+export const crearNota = (nota: CambiosNota) => llamar<Nota>({ accion: 'crearNota', nota })
+export const actualizarNota = (id: string, cambios: CambiosNota) => llamar<Nota>({ accion: 'actualizarNota', id, cambios })
+export const eliminarNota = (id: string) => llamar<{ ok: true }>({ accion: 'eliminarNota', id })
+export const restaurarNota = (id: string) => llamar<{ ok: true }>({ accion: 'restaurarNota', id })
+
+const CLAVE_NOTAS = 'paperflow:notas'
+export function guardarCopiaNotas(n: Nota[]) {
+  try {
+    localStorage.setItem(CLAVE_NOTAS, JSON.stringify(n))
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+export function leerCopiaNotas(): Nota[] | null {
+  try {
+    const t = localStorage.getItem(CLAVE_NOTAS)
+    return t ? (JSON.parse(t) as Nota[]) : null
+  } catch {
+    return null
+  }
+}
 
 // Última lectura buena, para no mostrar nunca una pantalla vacía si Notion no responde.
 const CLAVE = 'paperflow:ultima-lectura'

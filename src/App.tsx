@@ -8,6 +8,7 @@ import { Papel, Ramita } from './components/Papel.tsx'
 import { Login } from './components/Login.tsx'
 import { Hoy } from './components/Hoy.tsx'
 import { Semana } from './components/Semana.tsx'
+import { Cuaderno } from './components/Cuaderno.tsx'
 import { HojaDetalle } from './components/HojaDetalle.tsx'
 import { NuevaTarea, type DatosNuevaTarea } from './components/NuevaTarea.tsx'
 import type { AccionesTarjeta } from './components/Tarjeta.tsx'
@@ -16,7 +17,7 @@ import { useApariencia } from './lib/tema.ts'
 import { pasarHoja, precargarSonidos, trazoLapiz } from './lib/sonido.ts'
 import { Analytics } from '@vercel/analytics/react'
 
-type Ruta = 'hoy' | 'semana'
+type Ruta = 'hoy' | 'semana' | 'cuaderno'
 const REFRESCO_MS = 3 * 60 * 1000
 const AVISO_MS = 6000
 
@@ -27,7 +28,8 @@ function aplicarCambios(d: Datos, id: string, cambios: Partial<Pendiente>): Dato
 }
 
 function rutaActual(): Ruta {
-  return window.location.hash === '#semana' ? 'semana' : 'hoy'
+  const h = window.location.hash
+  return h === '#semana' ? 'semana' : h === '#cuaderno' ? 'cuaderno' : 'hoy'
 }
 
 interface Aviso {
@@ -256,6 +258,9 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
           <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined} onClick={pasarHoja}>
             semana
           </a>
+          <a className="nav-link" href="#cuaderno" aria-current={ruta === 'cuaderno' ? 'page' : undefined} onClick={pasarHoja}>
+            cuaderno
+          </a>
           {menu('derecha')}
         </nav>
         <div className="columna-nav">
@@ -271,6 +276,9 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
                 </a>
                 <a className="nav-link" href="#semana" aria-current={ruta === 'semana' ? 'page' : undefined} onClick={pasarHoja}>
                   semana
+                </a>
+                <a className="nav-link" href="#cuaderno" aria-current={ruta === 'cuaderno' ? 'page' : undefined} onClick={pasarHoja}>
+                  cuaderno
                 </a>
               </div>
               {proyectos.length > 0 && (
@@ -307,7 +315,7 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
           </Papel>
         </div>
 
-        {(falloLectura || desdeCopia) && datos && (
+        {(falloLectura || desdeCopia) && datos && ruta !== 'cuaderno' && (
           <div className="banda" role="status" style={{ flexBasis: '100%' }}>
             {falloLectura
               ? `No pude leer Notion (${falloLectura}). Muestro la última copia, de ${haceCuanto(datos.leidoEn, ahora)}.`
@@ -315,7 +323,9 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
           </div>
         )}
 
-        {!datos ? (
+        {ruta === 'cuaderno' ? (
+          <Cuaderno onAviso={mostrarAviso} />
+        ) : !datos ? (
           <div className="columna-principal">
             <p className="manuscrita suave" style={{ fontSize: 26, margin: 0 }} role="status">
               {falloLectura ? `No pude leer Notion: ${falloLectura}` : 'leyendo Notion…'}
