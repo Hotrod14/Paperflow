@@ -119,20 +119,20 @@
   --tinta: #eee8da; --tinta-2: #c1baa8; --critico: #e8957a; --secundario: #e6bd62; --azul: #a9c1eb;
   --sombra: rgba(0, 0, 0, 0.55);
 }
-:root[data-tema='claro'][data-fondo='nogal'] :is(.papel, .selector, .banda, .aviso, .avatar, .tema) {
+:root[data-tema='claro'][data-fondo='nogal'] :is(.papel, .cuaderno__hoja, .selector, .banda, .aviso, .avatar, .tema) {
   --tinta: #25241f; --tinta-2: #57544a; --critico: #a0432a; --secundario: #7b5a12; --azul: #2c4877;
 }
 /* El color se hereda ya calculado desde body: la hoja tiene que volver a pedirlo con su tinta. */
-:root[data-tema='claro'][data-fondo='nogal'] .papel { color: var(--tinta); }
+:root[data-tema='claro'][data-fondo='nogal'] :is(.papel, .cuaderno__hoja) { color: var(--tinta); }
 @media (prefers-color-scheme: light) {
   :root:not([data-tema='oscuro'])[data-fondo='nogal'] {
     --tinta: #eee8da; --tinta-2: #c1baa8; --critico: #e8957a; --secundario: #e6bd62; --azul: #a9c1eb;
     --sombra: rgba(0, 0, 0, 0.55);
   }
-  :root:not([data-tema='oscuro'])[data-fondo='nogal'] :is(.papel, .selector, .banda, .aviso, .avatar, .tema) {
+  :root:not([data-tema='oscuro'])[data-fondo='nogal'] :is(.papel, .cuaderno__hoja, .selector, .banda, .aviso, .avatar, .tema) {
     --tinta: #25241f; --tinta-2: #57544a; --critico: #a0432a; --secundario: #7b5a12; --azul: #2c4877;
   }
-  :root:not([data-tema='oscuro'])[data-fondo='nogal'] .papel { color: var(--tinta); }
+  :root:not([data-tema='oscuro'])[data-fondo='nogal'] :is(.papel, .cuaderno__hoja) { color: var(--tinta); }
 }
 
 * { box-sizing: border-box; }
