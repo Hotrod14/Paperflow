@@ -35,7 +35,8 @@ async function notion(ruta: string, init: RequestInit = {}, intento = 0): Promis
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       'Notion-Version': VERSION,
-      'Content-Type': 'application/json',
+      // Un FormData (subida de archivos) pone su propio Content-Type con el separador.
+      ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(init.headers ?? {}),
     },
   })
@@ -96,7 +97,61 @@ export async function paginaDe(pageId: string, esperadas: Base[]) {
 
 export async function actualizarPagina(pageId: string, esperado: Base[], propiedades: unknown) {
   await paginaDe(pageId, esperado)
+  return escribirPropiedades(pageId, propiedades)
+}
+
+/** Escribe propiedades sin volver a validar. Solo para páginas ya validadas con paginaDe. */
+export function escribirPropiedades(pageId: string, propiedades: unknown) {
   return notion(`/pages/${pageId}`, { method: 'PATCH', body: JSON.stringify({ properties: propiedades }) })
+}
+
+// ---- Imágenes del cuaderno (API de subida de archivos de Notion)
+
+/** Sube un archivo a Notion. Queda sin usar hasta pegarlo en una página (Notion lo descarta a la hora). */
+export async function subirArchivo(nombre: string, tipo: string, bytes: Uint8Array): Promise<string> {
+  // deno-lint-ignore no-explicit-any
+  const subida: any = await notion('/file_uploads', { method: 'POST', body: JSON.stringify({ filename: nombre, content_type: tipo }) })
+  const form = new FormData()
+  form.append('file', new Blob([bytes as BlobPart], { type: tipo }), nombre)
+  await notion(`/file_uploads/${subida.id}/send`, { method: 'POST', body: form })
+  return subida.id as string
+}
+
+/** Pega imágenes subidas al final del cuerpo de una página ya validada. Devuelve los ids de bloque, en el mismo orden. */
+export async function pegarImagenes(pageId: string, subidas: string[]): Promise<string[]> {
+  // deno-lint-ignore no-explicit-any
+  const res: any = await notion(`/blocks/${pageId}/children`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      children: subidas.map((id) => ({ object: 'block', type: 'image', image: { type: 'file_upload', file_upload: { id } } })),
+    }),
+  })
+  // deno-lint-ignore no-explicit-any
+  const bloques = (res.results ?? []).filter((b: any) => b.type === 'image').map((b: any) => b.id as string)
+  return bloques.slice(-subidas.length)
+}
+
+/** Imágenes del cuerpo de una página ya validada, con su URL temporal (Notion la renueva cada hora). */
+export async function imagenesDePagina(pageId: string): Promise<{ id: string; url: string }[]> {
+  const imagenes: { id: string; url: string }[] = []
+  let cursor: string | undefined
+  for (let vuelta = 0; vuelta < 5; vuelta++) {
+    // deno-lint-ignore no-explicit-any
+    const res: any = await notion(`/blocks/${pageId}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ''}`)
+    for (const b of res.results ?? []) {
+      if (b.type !== 'image' || b.in_trash || b.archived) continue
+      const url = b.image?.file?.url ?? b.image?.external?.url
+      if (url) imagenes.push({ id: b.id, url })
+    }
+    if (!res.has_more || !res.next_cursor) break
+    cursor = res.next_cursor
+  }
+  return imagenes
+}
+
+/** Manda un bloque a la papelera. */
+export function archivarBloque(blockId: string) {
+  return notion(`/blocks/${blockId}`, { method: 'DELETE' })
 }
 
 /** Crea una fila en un data source de Paperflow. Requiere la capacidad "Insert content". */

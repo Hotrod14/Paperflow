@@ -49,3 +49,16 @@ describe('cuaderno', () => {
     expect(p['Proyecto']).toEqual({ select: { name: 'General' } })
   })
 })
+
+describe('imágenes en el editor', () => {
+  const B = '11112222-3333-4444-5555-666677778888'
+  it('muestra etiquetas cortas y vuelve al formato de Notion', async () => {
+    const { aVista, deVista, fotosEnVista, quitarFoto } = await import('./cuaderno.ts')
+    const original = `hola\n![imagen](bloque:${B})\nchao`
+    const v = aVista(original)
+    expect(v.texto).toBe('hola\n[📷 imagen 1]\nchao')
+    expect(deVista(v.texto, v.fotos)).toBe(original)
+    expect(fotosEnVista(v.texto, v.fotos)).toEqual([{ n: '1', id: B }])
+    expect(quitarFoto(v.texto, '1')).toBe('hola\nchao')
+  })
+})

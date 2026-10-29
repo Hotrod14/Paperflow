@@ -357,6 +357,39 @@ a { color: var(--azul); }
   background-attachment: local;
 }
 .cuaderno__texto, .cuaderno__area { margin: 0; font-family: var(--lectura); font-size: 18px; line-height: var(--renglon); color: var(--tinta); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Fotos pegadas con cinta sobre la hoja. El alto de .foto se redondea a renglones desde Cuaderno.tsx. */
+.foto { margin: 0; display: flex; align-items: center; }
+.foto__marco {
+  position: relative; display: inline-block; max-width: min(100%, 560px);
+  padding: 8px 8px 12px; background: var(--foto-marco, #fbfaf5);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 6px 14px -6px var(--sombra);
+  transform: rotate(-0.8deg);
+}
+.foto:nth-of-type(even) .foto__marco { transform: rotate(0.7deg); }
+.foto__marco img { display: block; max-width: 100%; max-height: 420px; height: auto; }
+.foto__marco a { display: block; cursor: zoom-in; }
+.foto__marco::before {
+  content: ''; position: absolute; top: -11px; left: 50%; width: 88px; height: 24px;
+  transform: translateX(-50%) rotate(-3deg);
+  background: color-mix(in srgb, #efe2b4 72%, transparent);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+  -webkit-mask: linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% - 2px), transparent 0);
+}
+.foto__vacia { display: grid; place-items: center; width: 220px; height: 140px; color: var(--tinta-2); }
+:root[data-tema='oscuro'] { --foto-marco: #e6e0d2; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema='claro']) { --foto-marco: #e6e0d2; } }
+.cuaderno__miniaturas { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 0; }
+.cuaderno__miniaturas li { position: relative; width: 76px; height: 64px; display: grid; place-items: center; background: var(--foto-marco, #fbfaf5); padding: 4px; box-shadow: 0 1px 3px var(--sombra); }
+.cuaderno__miniaturas img { max-width: 100%; max-height: 100%; object-fit: cover; }
+.cuaderno__miniaturas button {
+  position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--tinta-2); background: var(--papel); color: var(--tinta); font-size: 12px; cursor: pointer; line-height: 1;
+}
+.cuaderno__numero { position: absolute; left: -6px; bottom: -6px; min-width: 20px; padding: 0 4px; border-radius: 10px; background: var(--tinta); color: var(--papel); font-size: 11px; text-align: center; }
+.cuaderno__miniaturas button:hover { color: var(--critico); border-color: var(--critico); }
+.cuaderno__subiendo { color: var(--tinta-2); animation: latido 1.2s ease-in-out infinite; }
+@keyframes latido { 50% { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .cuaderno__subiendo { animation: none; } }
 .cuaderno__area { display: block; width: 100%; padding: 0; border: none; background: transparent; resize: none; overflow: hidden; }
 .cuaderno__area:focus { outline: none; }
 .cuaderno__area::placeholder, .cuaderno__titulo--input::placeholder { color: var(--tinta-2); opacity: 0.7; }

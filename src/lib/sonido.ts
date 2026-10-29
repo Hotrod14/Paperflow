@@ -45,6 +45,7 @@ const hoja = crearSonido('pasar-hoja', 0.6)
 const lapiz = crearSonido('lapiz', 0.5)
 const tarea = crearSonido('abrir-tarea', 1)
 const arrancar = crearSonido('arrancar-hoja', 0.45)
+const cinta = crearSonido('cinta', 0.5)
 
 /** Hoja pasando: navegar, cambiar de ámbito, desplegar, soltar o fijar en "hoy". */
 export const pasarHoja = hoja.reproducir
@@ -54,6 +55,8 @@ export const trazoLapiz = lapiz.reproducir
 export const abrirTarea = tarea.reproducir
 /** Arrancar una hoja del cuaderno: borrar una nota. */
 export const arrancarHoja = arrancar.reproducir
+/** Cinta adhesiva: pegar una imagen en una hoja del cuaderno. */
+export const pegarCinta = cinta.reproducir
 
 /** Descarga los sonidos con anticipación para que el primer clic no llegue tarde. */
 export function precargarSonidos() {
@@ -61,4 +64,5 @@ export function precargarSonidos() {
   lapiz.precargar()
   tarea.precargar()
   arrancar.precargar()
+  cinta.precargar()
 }

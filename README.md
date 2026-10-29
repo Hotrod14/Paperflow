@@ -23,7 +23,7 @@ Notion · bases "Auditorías", "Pendientes", "Tareas sueltas" y "Cuaderno de not
 
 - Acciones de la función:
   - tareas: `leer`, `actualizarPendiente`, `actualizarAuditoria` y `crearTarea`
-  - cuaderno: `leerNotas`, `crearNota`, `actualizarNota`, `eliminarNota` y `restaurarNota`
+  - cuaderno: `leerNotas`, `crearNota`, `actualizarNota`, `eliminarNota`, `restaurarNota`, `subirImagen` y `leerImagenes`
 - `crearTarea` solo crea filas en la base **"Tareas sueltas"** (separada de Auditorías y Pendientes).
 - Solo se pueden escribir estos campos:
   - pendiente o tarea suelta: Estado, Fecha de cierre, Cerrado por, Evidencia, En foco (y Avisado a diseño en pendientes)
@@ -131,4 +131,13 @@ Pestaña **cuaderno** (`#cuaderno`): notas para organizarse, guardadas en la bas
 - Doble clic sobre la hoja también la abre para editar.
 - Eliminar manda la página a la papelera de Notion. El aviso trae **deshacer**, y la nota también se puede recuperar desde la papelera.
 - El índice busca sin distinguir tildes y filtra por proyecto. Las notas fijadas van primero.
-- Sonidos: abrir hoja, pasar hoja, trazo de lápiz al guardar y hoja arrancada al eliminar.
+- Sonidos: abrir hoja, pasar hoja, trazo de lápiz al guardar, hoja arrancada al eliminar y cinta adhesiva al pegar una imagen.
+
+### Imágenes
+
+- Se pegan con `Ctrl/Cmd + V` (capturas o imágenes copiadas), arrastrándolas a la hoja o con el botón **📎 imagen**.
+- Antes de subirlas, el navegador las achica a 1800 px por lado y las pasa a WebP. Los GIF se suben tal cual. Límite: 5 MB por imagen.
+- Se guardan en Notion, como bloques de imagen en el cuerpo de la página de la nota (la API de subida de archivos de Notion).
+- En la propiedad *Contenido* queda una marca `![imagen](bloque:<id>)` en el lugar de cada imagen. En el editor se ve como `[📷 imagen N]`.
+- Al quitar una imagen de la nota y guardar, su bloque va a la papelera de Notion.
+- Las imágenes agregadas directo en Notion, sin marca en el texto, se muestran al final de la hoja.

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as KeyboardEventReact } from 'react'
 import type { Nota } from '../lib/tipos.ts'
-import { actualizarNota, crearNota, eliminarNota, guardarCopiaNotas, leerCopiaNotas, leerNotas, restaurarNota } from '../lib/api.ts'
-import { fechaCorta, filtrarNotas, ordenarNotas, resumenNota } from '../lib/cuaderno.ts'
+import { actualizarNota, crearNota, eliminarNota, guardarCopiaNotas, leerCopiaNotas, leerImagenes, leerNotas, restaurarNota, subirImagen } from '../lib/api.ts'
+import { aVista, deVista, etiquetaFoto, fechaCorta, filtrarNotas, fotosEnVista, ordenarNotas, quitarFoto, resumenNota, siguienteFoto } from '../lib/cuaderno.ts'
 import { fechaLarga, haceCuanto } from '../lib/fechas.ts'
-import { abrirTarea, arrancarHoja, pasarHoja, trazoLapiz } from '../lib/sonido.ts'
+import { abrirTarea, arrancarHoja, pasarHoja, pegarCinta, trazoLapiz } from '../lib/sonido.ts'
+import { aBase64, esImagen, prepararImagen } from '../lib/imagen.ts'
+import { idsImagen, insertarImagen, marcaImagen, partesContenido } from '../../supabase/functions/_shared/imagenes.ts'
 import { PROYECTOS_NOTA } from '../../supabase/functions/_shared/mapeo.ts'
 import { createPortal } from 'react-dom'
 import { Papel } from './Papel.tsx'
@@ -33,7 +35,41 @@ function useEscritorio() {
 }
 
 type Aviso = { texto: string; deshacer?: () => void; error?: boolean }
-type Borrador = { titulo: string; contenido: string; proyecto: string; fijada: boolean }
+
+/**
+ * Una foto pegada en la hoja con cinta. Su alto se redondea a renglones completos
+ * para que el texto que sigue caiga sobre las líneas.
+ */
+function Foto({ url, alt, onFalla }: { url?: string; alt: string; onFalla?: () => void }) {
+  const marcoRef = useRef<HTMLSpanElement>(null)
+  const [alto, setAlto] = useState<number | undefined>(undefined)
+  useLayoutEffect(() => {
+    const m = marcoRef.current
+    if (!m) return
+    const medir = () => setAlto(Math.ceil((m.offsetHeight + 24) / RENGLON) * RENGLON)
+    medir()
+    const ro = new ResizeObserver(medir)
+    ro.observe(m)
+    return () => ro.disconnect()
+  }, [url])
+  return (
+    <figure className="foto" style={{ height: alto }}>
+      <span className="foto__marco" ref={marcoRef}>
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer" title="abrir en tamaño completo">
+            <img src={url} alt={alt} loading="lazy" onError={onFalla} />
+          </a>
+        ) : (
+          <span className="foto__vacia datos">cargando imagen…</span>
+        )}
+      </span>
+    </figure>
+  )
+}
+
+const RENGLON = 32
+/** contenido va con etiquetas [📷 imagen N]; fotos guarda N → marca completa (ver lib/cuaderno.ts). */
+type Borrador = { titulo: string; contenido: string; proyecto: string; fijada: boolean; fotos: Record<string, string> }
 
 const NUEVA = '__nueva__'
 const MAX = 20000
@@ -61,6 +97,14 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   const tituloRef = useRef<HTMLInputElement>(null)
   const areaRef = useRef<HTMLTextAreaElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const archivoRef = useRef<HTMLInputElement>(null)
+  // Imágenes: id (de bloque en Notion o de subida reciente) → URL para mostrarla.
+  const [urls, setUrls] = useState<Record<string, string>>({})
+  // Por nota: cuándo se leyeron sus imágenes de Notion y cuáles tiene la página.
+  const [imagenesNota, setImagenesNota] = useState<Record<string, { en: number; ids: string[] }>>({})
+  const [subiendo, setSubiendo] = useState(0)
+  const pedidas = useRef(new Set<string>())
+  const fallidas = useRef(new Set<string>())
 
   // ---- Lectura
   useEffect(() => {
@@ -103,7 +147,9 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     (seleccion === NUEVA
       ? Boolean(borrador.titulo.trim() || borrador.contenido.trim())
       : actual !== null &&
-        (borrador.titulo !== actual.titulo || borrador.contenido !== actual.contenido || borrador.proyecto !== actual.proyecto))
+        (borrador.titulo !== actual.titulo ||
+          deVista(borrador.contenido, borrador.fotos) !== actual.contenido ||
+          borrador.proyecto !== actual.proyecto))
 
   const puedeSalir = () => !sucio || window.confirm('Tienes cambios sin guardar en esta hoja. ¿Descartarlos?')
 
@@ -127,7 +173,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     if (!puedeSalir()) return
     abrirTarea()
     setSeleccion(NUEVA)
-    setBorrador({ titulo: '', contenido: '', proyecto: filtro ?? 'General', fijada: false })
+    setBorrador({ titulo: '', contenido: '', proyecto: filtro ?? 'General', fijada: false, fotos: {} })
     setEditando(true)
     setMenu(false)
     setVista('hoja')
@@ -136,7 +182,8 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   function editar() {
     if (!actual) return
     trazoLapiz()
-    setBorrador({ titulo: actual.titulo, contenido: actual.contenido, proyecto: actual.proyecto, fijada: actual.fijada })
+    const vista = aVista(actual.contenido)
+    setBorrador({ titulo: actual.titulo, contenido: vista.texto, proyecto: actual.proyecto, fijada: actual.fijada, fotos: vista.fotos })
     setEditando(true)
     setMenu(false)
   }
@@ -153,6 +200,10 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
 
   async function guardar() {
     if (!borrador || guardando) return
+    if (subiendo > 0) {
+      onAviso({ texto: 'Espera a que termine de pegarse la imagen' })
+      return
+    }
     if (seleccion === NUEVA) {
       if (!borrador.titulo.trim() && !borrador.contenido.trim()) {
         cancelar()
@@ -160,8 +211,14 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
       }
       setGuardando(true)
       try {
-        const creada = await crearNota(borrador)
+        const creada = await crearNota({
+          titulo: borrador.titulo,
+          contenido: deVista(borrador.contenido, borrador.fotos),
+          proyecto: borrador.proyecto,
+          fijada: borrador.fijada,
+        })
         cambiarNotas((n) => [creada, ...n])
+        if (idsImagen(creada.contenido, 'bloque').length) cargarImagenes(creada.id)
         setSeleccion(creada.id)
         setEditando(false)
         setBorrador(null)
@@ -175,9 +232,10 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
       return
     }
     if (!actual) return
-    const cambios: Partial<Borrador> = {}
+    const cambios: { titulo?: string; contenido?: string; proyecto?: string } = {}
+    const contenido = deVista(borrador.contenido, borrador.fotos)
     if (borrador.titulo !== actual.titulo) cambios.titulo = borrador.titulo
-    if (borrador.contenido !== actual.contenido) cambios.contenido = borrador.contenido
+    if (contenido !== actual.contenido) cambios.contenido = contenido
     if (borrador.proyecto !== actual.proyecto) cambios.proyecto = borrador.proyecto
     setEditando(false)
     setBorrador(null)
@@ -188,6 +246,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     try {
       const guardada = await actualizarNota(previa.id, cambios)
       cambiarNotas((n) => n.map((x) => (x.id === guardada.id ? guardada : x)))
+      if (cambios.contenido !== undefined && idsImagen(guardada.contenido, 'bloque').length) cargarImagenes(guardada.id)
     } catch (e) {
       cambiarNotas((n) => n.map((x) => (x.id === previa.id ? previa : x)))
       onAviso({ texto: `No se guardó en Notion: ${e instanceof Error ? e.message : 'error'}`, error: true })
@@ -277,6 +336,76 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     document.addEventListener('pointerdown', fuera)
     return () => document.removeEventListener('pointerdown', fuera)
   }, [menu])
+
+  // ---- Imágenes
+  const cargarImagenes = useCallback((notaId: string) => {
+    if (pedidas.current.has(notaId)) return
+    pedidas.current.add(notaId)
+    leerImagenes(notaId)
+      .then((lista) => {
+        setUrls((u) => ({ ...u, ...Object.fromEntries(lista.map((i) => [i.id, i.url])) }))
+        setImagenesNota((m) => ({ ...m, [notaId]: { en: Date.now(), ids: lista.map((i) => i.id) } }))
+      })
+      .catch(() => {
+        /* sin imágenes por ahora: la hoja muestra "cargando imagen…" y el texto sigue legible */
+      })
+      .finally(() => pedidas.current.delete(notaId))
+  }, [])
+
+  // Al abrir una nota se piden sus imágenes; las URL de Notion vencen en una hora, así que se renuevan antes.
+  useEffect(() => {
+    if (!actual) return
+    const info = imagenesNota[actual.id]
+    const edad = info ? Date.now() - info.en : Infinity
+    const faltan = idsImagen(actual.contenido, 'bloque').some((id) => !urls[id])
+    if (edad > 45 * 60_000 || (faltan && edad > 5_000)) cargarImagenes(actual.id)
+  }, [actual, imagenesNota, urls, cargarImagenes])
+
+  /** Una URL vencida: se vuelve a pedir la lista de esa nota (una vez por URL). */
+  function imagenFallo(notaId: string, url: string | undefined) {
+    if (!url || url.startsWith('blob:') || fallidas.current.has(url)) return
+    fallidas.current.add(url)
+    setImagenesNota((m) => ({ ...m, [notaId]: { en: 0, ids: m[notaId]?.ids ?? [] } }))
+  }
+
+  async function pegarImagenes(archivos: File[]) {
+    const imagenes = archivos.filter(esImagen)
+    if (!imagenes.length) {
+      if (archivos.length) onAviso({ texto: 'Solo se pueden pegar imágenes PNG, JPG, GIF o WebP', error: true })
+      return
+    }
+    for (const archivo of imagenes) {
+      setSubiendo((n) => n + 1)
+      try {
+        const lista = await prepararImagen(archivo)
+        const id = await subirImagen(lista.nombre, lista.tipo, await aBase64(lista.blob))
+        setUrls((u) => ({ ...u, [id]: URL.createObjectURL(lista.blob) }))
+        const area = areaRef.current
+        const pos = area && document.activeElement === area ? area.selectionStart : Number.MAX_SAFE_INTEGER
+        let tras = 0
+        setBorrador((b) => {
+          if (!b) return b
+          const n = siguienteFoto(b.fotos)
+          const r = insertarImagen(b.contenido, pos, etiquetaFoto(n))
+          tras = r.pos
+          return { ...b, contenido: r.texto, fotos: { ...b.fotos, [n]: marcaImagen('archivo', id) } }
+        })
+        requestAnimationFrame(() => {
+          if (area && document.activeElement === area) area.setSelectionRange(tras, tras)
+        })
+        pegarCinta()
+      } catch (e) {
+        onAviso({ texto: `No se pegó la imagen: ${e instanceof Error ? e.message : 'error'}`, error: true })
+      } finally {
+        setSubiendo((n) => n - 1)
+      }
+    }
+  }
+
+  function quitarDelBorrador(n: string) {
+    arrancarHoja()
+    setBorrador((b) => (b ? { ...b, contenido: quitarFoto(b.contenido, n) } : b))
+  }
 
   const fijadas = notas.filter((n) => n.fijada).length
   const fechaHoja = actual ? fechaLarga(new Date(actual.creada)) : fechaLarga()
@@ -471,14 +600,66 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
                   className="cuaderno__area"
                   value={borrador.contenido}
                   maxLength={MAX}
-                  placeholder="escribe aquí…"
+                  placeholder="escribe aquí… (ctrl + v pega imágenes)"
                   onChange={(e) => setBorrador({ ...borrador, contenido: e.target.value })}
+                  onPaste={(e) => {
+                    // Captura o imagen copiada: se sube. Si también trae texto (Word, Excel…), se pega el texto como siempre.
+                    const archivos = Array.from(e.clipboardData.files)
+                    if (!archivos.length || e.clipboardData.getData('text/plain')) return
+                    e.preventDefault()
+                    void pegarImagenes(archivos)
+                  }}
+                  onDragOver={(e) => {
+                    if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+                  }}
+                  onDrop={(e) => {
+                    if (!e.dataTransfer.files.length) return
+                    e.preventDefault()
+                    void pegarImagenes(Array.from(e.dataTransfer.files))
+                  }}
                 />
               </div>
+              {(() => {
+                const fotos = fotosEnVista(borrador.contenido, borrador.fotos)
+                if (!fotos.length && !subiendo) return null
+                return (
+                  <ul className="lista-limpia cuaderno__miniaturas" aria-label="Imágenes de esta hoja">
+                    {fotos.map((f) => (
+                      <li key={f.n}>
+                        {urls[f.id] ? <img src={urls[f.id]} alt="" /> : <span className="datos">imagen</span>}
+                        <span className="cuaderno__numero datos">{f.n}</span>
+                        <button type="button" aria-label={`Quitar la imagen ${f.n} de la hoja`} title="quitar" onClick={() => quitarDelBorrador(f.n)}>
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                    {subiendo > 0 && (
+                      <li className="cuaderno__subiendo datos" aria-live="polite">
+                        pegando…
+                      </li>
+                    )}
+                  </ul>
+                )
+              })()}
               <div className="cuaderno__acciones">
-                <button type="button" className="btn-mano" disabled={guardando} onClick={() => void guardar()}>
-                  {guardando ? 'guardando…' : 'guardar'}
+                <button type="button" className="btn-mano" disabled={guardando || subiendo > 0} onClick={() => void guardar()}>
+                  {guardando ? 'guardando…' : subiendo > 0 ? 'pegando imagen…' : 'guardar'}
                 </button>
+                <button type="button" className="btn-texto btn-texto--suave" onClick={() => archivoRef.current?.click()}>
+                  📎 imagen
+                </button>
+                <input
+                  ref={archivoRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  multiple
+                  hidden
+                  onChange={(e) => {
+                    const archivos = Array.from(e.target.files ?? [])
+                    e.target.value = ''
+                    void pegarImagenes(archivos)
+                  }}
+                />
                 <button type="button" className="btn-texto btn-texto--suave" onClick={cancelar}>
                   cancelar
                 </button>
@@ -491,7 +672,29 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
             <div className="cuaderno__lectura">
               <h2 className="cuaderno__titulo">{actual.titulo || <span className="suave">sin título</span>}</h2>
               <div className="cuaderno__cuerpo" onDoubleClick={editar} title="doble clic para editar">
-                {actual.contenido ? <p className="cuaderno__texto">{actual.contenido}</p> : <p className="cuaderno__texto suave">(hoja en blanco)</p>}
+                {(() => {
+                  const partes = partesContenido(actual.contenido)
+                  // Imágenes agregadas directo en la página de Notion (sin marca en el texto): van al final.
+                  const marcadas = new Set(partes.flatMap((p) => (p.tipo === 'imagen' ? [p.id] : [])))
+                  const extra = (imagenesNota[actual.id]?.ids ?? []).filter((id) => !marcadas.has(id))
+                  if (!partes.length && !extra.length) return <p className="cuaderno__texto suave">(hoja en blanco)</p>
+                  return (
+                    <>
+                      {partes.map((p, i) =>
+                        p.tipo === 'texto' ? (
+                          <p key={`t${i}`} className="cuaderno__texto">
+                            {p.texto}
+                          </p>
+                        ) : (
+                          <Foto key={p.id} url={urls[p.id]} alt={p.alt} onFalla={() => imagenFallo(actual.id, urls[p.id])} />
+                        ),
+                      )}
+                      {extra.map((id) => (
+                        <Foto key={id} url={urls[id]} alt="imagen" onFalla={() => imagenFallo(actual.id, urls[id])} />
+                      ))}
+                    </>
+                  )
+                })()}
               </div>
               <p className="datos cuaderno__pie">
                 {actual.proyecto.toLowerCase()} · editada {haceCuanto(actual.editada)}

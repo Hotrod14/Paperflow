@@ -45,6 +45,12 @@ export const crearNota = (nota: CambiosNota) => llamar<Nota>({ accion: 'crearNot
 export const actualizarNota = (id: string, cambios: CambiosNota) => llamar<Nota>({ accion: 'actualizarNota', id, cambios })
 export const eliminarNota = (id: string) => llamar<{ ok: true }>({ accion: 'eliminarNota', id })
 export const restaurarNota = (id: string) => llamar<{ ok: true }>({ accion: 'restaurarNota', id })
+/** Sube una imagen ya comprimida. Devuelve el id de subida; la función la pega en la nota al guardar. */
+export const subirImagen = (nombre: string, tipo: string, datos: string) =>
+  llamar<{ archivo: string }>({ accion: 'subirImagen', nombre, tipo, datos }).then((r) => r.archivo)
+/** Imágenes del cuerpo de la nota en Notion, con URL temporal (dura cerca de una hora). */
+export const leerImagenes = (id: string) =>
+  llamar<{ imagenes: { id: string; url: string }[] }>({ accion: 'leerImagenes', id }).then((r) => r.imagenes)
 
 const CLAVE_NOTAS = 'paperflow:notas'
 export function guardarCopiaNotas(n: Nota[]) {

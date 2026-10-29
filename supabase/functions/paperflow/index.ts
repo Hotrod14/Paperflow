@@ -11,6 +11,8 @@
 //   { accion: "crearNota", nota: { titulo?, contenido?, proyecto?, fijada? } }
 //   { accion: "actualizarNota", id, cambios }
 //   { accion: "eliminarNota", id } / { accion: "restaurarNota", id }  → papelera de Notion
+//   { accion: "subirImagen", nombre, tipo, datos(base64) } → { archivo } (se pega en la nota al guardar)
+//   { accion: "leerImagenes", id }                      → imágenes de la nota con URL temporal
 //
 // No guarda datos propios: solo una caché en memoria de 45 s por
 // instancia, que se invalida en cada escritura.
@@ -22,6 +24,12 @@ import {
   consultarTodo,
   aPapelera,
   crearPagina,
+  archivarBloque,
+  escribirPropiedades,
+  imagenesDePagina,
+  paginaDe,
+  pegarImagenes,
+  subirArchivo,
   DB_NOTAS,
   DS_NOTAS,
   DB_AUDITORIAS,
@@ -43,6 +51,7 @@ import {
   propiedadesAuditoria,
   propiedadesPendiente,
 } from '../_shared/mapeo.ts'
+import { archivosABloques, idsImagen, MAX_BYTES_IMAGEN, TIPOS_IMAGEN } from '../_shared/imagenes.ts'
 
 const TTL_MS = 45_000
 let cache: { en: number; datos: unknown } | null = null
@@ -142,6 +151,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    /** Pega en la página las imágenes subidas que marca el texto y devuelve el texto apuntando a sus bloques. */
+    const conImagenesPegadas = async (pageId: string, contenido: string) => {
+      const subidas = [...new Set(idsImagen(contenido, 'archivo'))]
+      if (!subidas.length) return contenido
+      const bloques = await pegarImagenes(pageId, subidas)
+      return archivosABloques(contenido, Object.fromEntries(subidas.map((id, i) => [id, bloques[i]]).filter(([, b]) => b)))
+    }
+
     if (body?.accion === 'leerNotas') {
       const notas = await consultarTodo(DS_NOTAS)
       return json(req, { notas: notas.map(aNota) })
@@ -152,16 +169,59 @@ Deno.serve(async (req) => {
       const props = conCambios(() => propiedadesNota(body.nota, true))
       // deno-lint-ignore no-explicit-any
       const creada: any = await crearPagina(DS_NOTAS, props)
-      return json(req, aNota(creada))
+      const contenido = typeof body.nota.contenido === 'string' ? body.nota.contenido : ''
+      if (!idsImagen(contenido, 'archivo').length) return json(req, aNota(creada))
+      // Las imágenes recién subidas se pegan en la página y su marca pasa a apuntar al bloque.
+      const final = await conImagenesPegadas(creada.id, contenido)
+      // deno-lint-ignore no-explicit-any
+      const lista: any = await escribirPropiedades(creada.id, conCambios(() => propiedadesNota({ contenido: final })))
+      return json(req, aNota(lista))
+    }
+
+    if (body?.accion === 'subirImagen') {
+      const tipo = String(body.tipo ?? '')
+      if (!(TIPOS_IMAGEN as readonly string[]).includes(tipo)) throw new ErrorHttp('Formato de imagen no admitido (usa PNG, JPG, GIF o WebP)')
+      if (typeof body.datos !== 'string' || !body.datos) throw new ErrorHttp('imagen vacía')
+      let bytes: Uint8Array
+      try {
+        bytes = Uint8Array.from(atob(body.datos), (c) => c.charCodeAt(0))
+      } catch {
+        throw new ErrorHttp('imagen inválida')
+      }
+      if (bytes.length > MAX_BYTES_IMAGEN) throw new ErrorHttp('La imagen pesa más de 5 MB')
+      const extension = tipo.split('/')[1].replace('jpeg', 'jpg')
+      const base = String(body.nombre ?? 'imagen').replace(/\.[a-z0-9]+$/i, '').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60) || 'imagen'
+      const archivo = await subirArchivo(`${base}.${extension}`, tipo, bytes)
+      return json(req, { archivo })
+    }
+
+    if (body?.accion === 'leerImagenes') {
+      if (typeof body.id !== 'string' || !ID_RE.test(body.id)) throw new ErrorHttp('id inválido')
+      await paginaDe(body.id, BASE_NOTAS)
+      return json(req, { imagenes: await imagenesDePagina(body.id) })
     }
 
     if (body?.accion === 'actualizarNota' || body?.accion === 'eliminarNota' || body?.accion === 'restaurarNota') {
       if (typeof body.id !== 'string' || !ID_RE.test(body.id)) throw new ErrorHttp('id inválido')
       if (body.accion === 'actualizarNota') {
         if (!body.cambios || typeof body.cambios !== 'object') throw new ErrorHttp('cambios inválidos')
-        const props = conCambios(() => propiedadesNota(body.cambios))
+        conCambios(() => propiedadesNota(body.cambios)) // valida antes de tocar nada
+        if (typeof body.cambios.contenido !== 'string') {
+          // deno-lint-ignore no-explicit-any
+          const pagina: any = await actualizarPagina(body.id, BASE_NOTAS, propiedadesNota(body.cambios))
+          return json(req, aNota(pagina))
+        }
+        const anterior = aNota(await paginaDe(body.id, BASE_NOTAS))
+        const contenido = await conImagenesPegadas(body.id, body.cambios.contenido)
         // deno-lint-ignore no-explicit-any
-        const pagina: any = await actualizarPagina(body.id, BASE_NOTAS, props)
+        const pagina: any = await escribirPropiedades(body.id, conCambios(() => propiedadesNota({ ...body.cambios, contenido })))
+        // Imágenes que estaban en el texto y se quitaron: su bloque va a la papelera de Notion.
+        // Las que se agregaron directo en Notion (nunca marcadas en el texto) no se tocan.
+        const quitadas = idsImagen(anterior.contenido, 'bloque').filter((id) => !idsImagen(contenido, 'bloque').includes(id))
+        if (quitadas.length) {
+          const enPagina = new Set((await imagenesDePagina(body.id)).map((i) => i.id))
+          await Promise.all(quitadas.filter((id) => enPagina.has(id)).map((id) => archivarBloque(id).catch(() => null)))
+        }
         return json(req, aNota(pagina))
       }
       await aPapelera(body.id, BASE_NOTAS, body.accion === 'eliminarNota')
