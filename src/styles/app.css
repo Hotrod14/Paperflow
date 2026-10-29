@@ -379,8 +379,10 @@ a { color: var(--azul); }
 :root[data-tema='oscuro'] { --foto-marco: #e6e0d2; }
 @media (prefers-color-scheme: dark) { :root:not([data-tema='claro']) { --foto-marco: #e6e0d2; } }
 .cuaderno__miniaturas { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 0; }
-.cuaderno__miniaturas li { position: relative; width: 76px; height: 64px; display: grid; place-items: center; background: var(--foto-marco, #fbfaf5); padding: 4px; box-shadow: 0 1px 3px var(--sombra); }
-.cuaderno__miniaturas img { max-width: 100%; max-height: 100%; object-fit: cover; }
+/* Miniatura de tamaño fijo: la imagen se recorta (vertical u horizontal) y nunca empuja los botones. */
+.cuaderno__miniaturas { margin-bottom: 18px; }
+.cuaderno__miniaturas li { position: relative; flex: none; width: 76px; height: 64px; display: grid; place-items: center; background: var(--foto-marco, #fbfaf5); box-shadow: 0 1px 3px var(--sombra); }
+.cuaderno__miniaturas img { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); object-fit: cover; object-position: top; }
 .cuaderno__miniaturas button {
   position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%;
   border: 1px solid var(--tinta-2); background: var(--papel); color: var(--tinta); font-size: 12px; cursor: pointer; line-height: 1;
