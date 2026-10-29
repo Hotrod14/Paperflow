@@ -159,7 +159,8 @@ a { color: var(--azul); }
 }
 .columna-principal { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
 .columna-lateral { flex: 1 1 250px; display: flex; flex-direction: column; gap: 22px; }
-.columna-nav { flex: 1 1 220px; }
+.columna-nav { flex: 1 1 220px; display: flex; flex-direction: column; gap: 28px; }
+.columna-nav__extra:empty { display: none; }
 
 /* ---------- Papel ---------- */
 .papel-sombra { filter: drop-shadow(0 2px 3px var(--sombra)); }
@@ -297,6 +298,9 @@ a { color: var(--azul); }
 /* ---------- Cuaderno de notas ---------- */
 .cuaderno__mesa { display: grid; grid-template-columns: minmax(220px, 290px) minmax(0, 1fr); gap: 28px; align-items: start; }
 .cuaderno__indice { position: sticky; top: 20px; }
+.cuaderno__mesa[data-lateral] { grid-template-columns: minmax(0, 1fr); }
+.cuaderno__indice--lateral { position: static; }
+.cuaderno__indice--lateral .indice { max-height: none; }
 
 .indice { padding: 24px 20px 22px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 80px); }
 .indice__titulo { margin: 0; font-family: var(--manuscrita); font-size: 32px; font-weight: 700; line-height: 1; }

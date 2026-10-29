@@ -80,6 +80,8 @@ function SinConfigurar() {
 
 function Escritorio({ correo, apariencia }: { correo: string; apariencia: ReturnType<typeof useApariencia> }) {
   const [ruta, setRuta] = useState<Ruta>(rutaActual)
+  // Hueco bajo el menú lateral: el cuaderno pone ahí su índice en escritorio.
+  const [huecoLateral, setHuecoLateral] = useState<HTMLDivElement | null>(null)
   const [ambito, setAmbito] = useState<Ambito>('Trabajo')
   const [datos, setDatos] = useState<Datos | null>(() => leerCopia())
   const [desdeCopia, setDesdeCopia] = useState(() => leerCopia() !== null)
@@ -313,6 +315,7 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
               </div>
             </div>
           </Papel>
+          <div ref={setHuecoLateral} className="columna-nav__extra" />
         </div>
 
         {(falloLectura || desdeCopia) && datos && ruta !== 'cuaderno' && (
@@ -324,7 +327,7 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
         )}
 
         {ruta === 'cuaderno' ? (
-          <Cuaderno onAviso={mostrarAviso} />
+          <Cuaderno onAviso={mostrarAviso} lateral={huecoLateral} />
         ) : !datos ? (
           <div className="columna-principal">
             <p className="manuscrita suave" style={{ fontSize: 26, margin: 0 }} role="status">
