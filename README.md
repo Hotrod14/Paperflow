@@ -141,3 +141,4 @@ Pestaña **cuaderno** (`#cuaderno`): notas para organizarse, guardadas en la bas
 - En la propiedad *Contenido* queda una marca `![imagen](bloque:<id>)` en el lugar de cada imagen. En el editor se ve como `[📷 imagen N]`.
 - Al quitar una imagen de la nota y guardar, su bloque va a la papelera de Notion.
 - Las imágenes agregadas directo en Notion, sin marca en el texto, se muestran al final de la hoja.
+- Notion entrega cada imagen con un enlace que vence en una hora. La app lo renueva sola (cada 40 min, al volver a la pestaña o si una imagen falla) y el clic abre un visor dentro de la app, nunca el enlace directo.

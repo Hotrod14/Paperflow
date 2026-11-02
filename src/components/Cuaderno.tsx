@@ -40,7 +40,7 @@ type Aviso = { texto: string; deshacer?: () => void; error?: boolean }
  * Una foto pegada en la hoja con cinta. Su alto se redondea a renglones completos
  * para que el texto que sigue caiga sobre las líneas.
  */
-function Foto({ url, alt, onFalla }: { url?: string; alt: string; onFalla?: () => void }) {
+function Foto({ url, alt, onFalla, onAbrir }: { url?: string; alt: string; onFalla?: () => void; onAbrir?: () => void }) {
   const marcoRef = useRef<HTMLSpanElement>(null)
   const [alto, setAlto] = useState<number | undefined>(undefined)
   useLayoutEffect(() => {
@@ -56,9 +56,9 @@ function Foto({ url, alt, onFalla }: { url?: string; alt: string; onFalla?: () =
     <figure className="foto" style={{ height: alto }}>
       <span className="foto__marco" ref={marcoRef}>
         {url ? (
-          <a href={url} target="_blank" rel="noreferrer" title="abrir en tamaño completo">
+          <button type="button" className="foto__abrir" onClick={onAbrir} title="ver en tamaño completo">
             <img src={url} alt={alt} loading="lazy" onError={onFalla} />
-          </a>
+          </button>
         ) : (
           <span className="foto__vacia datos">cargando imagen…</span>
         )}
@@ -68,6 +68,36 @@ function Foto({ url, alt, onFalla }: { url?: string; alt: string; onFalla?: () =
 }
 
 const RENGLON = 32
+
+/** Visor a pantalla completa. Pide una URL nueva si la que tiene ya venció. */
+function Visor({ url, alt, onCerrar, onFalla }: { url?: string; alt: string; onCerrar: () => void; onFalla: () => void }) {
+  const cerrarRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const previo = document.activeElement as HTMLElement | null
+    cerrarRef.current?.focus()
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar()
+    }
+    document.addEventListener('keydown', tecla)
+    return () => {
+      document.removeEventListener('keydown', tecla)
+      previo?.focus()
+    }
+  }, [onCerrar])
+  return createPortal(
+    <div className="visor" role="dialog" aria-modal="true" aria-label="Imagen en tamaño completo" onClick={onCerrar}>
+      <button ref={cerrarRef} type="button" className="visor__cerrar" aria-label="Cerrar" onClick={onCerrar}>
+        ✕
+      </button>
+      {url ? (
+        <img className="visor__img" src={url} alt={alt} onError={onFalla} onClick={(e) => e.stopPropagation()} />
+      ) : (
+        <p className="visor__cargando datos">cargando imagen…</p>
+      )}
+    </div>,
+    document.body,
+  )
+}
 /** contenido va con etiquetas [📷 imagen N]; fotos guarda N → marca completa (ver lib/cuaderno.ts). */
 type Borrador = { titulo: string; contenido: string; proyecto: string; fijada: boolean; fotos: Record<string, string> }
 
@@ -103,7 +133,10 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   // Por nota: cuándo se leyeron sus imágenes de Notion y cuáles tiene la página.
   const [imagenesNota, setImagenesNota] = useState<Record<string, { en: number; ids: string[] }>>({})
   const [subiendo, setSubiendo] = useState(0)
-  const pedidas = useRef(new Set<string>())
+  const pedidas = useRef(new Map<string, Promise<void>>())
+  const [ampliada, setAmpliada] = useState<{ notaId: string; id: string; alt: string } | null>(null)
+  // Reloj de minutos: con la pestaña abierta mucho rato, las URL de Notion (duran 1 h) se renuevan solas.
+  const [reloj, setReloj] = useState(() => Date.now())
   const fallidas = useRef(new Set<string>())
 
   // ---- Lectura
@@ -338,10 +371,10 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   }, [menu])
 
   // ---- Imágenes
-  const cargarImagenes = useCallback((notaId: string) => {
-    if (pedidas.current.has(notaId)) return
-    pedidas.current.add(notaId)
-    leerImagenes(notaId)
+  const cargarImagenes = useCallback((notaId: string): Promise<void> => {
+    const enCurso = pedidas.current.get(notaId)
+    if (enCurso) return enCurso
+    const pedido = leerImagenes(notaId)
       .then((lista) => {
         setUrls((u) => ({ ...u, ...Object.fromEntries(lista.map((i) => [i.id, i.url])) }))
         setImagenesNota((m) => ({ ...m, [notaId]: { en: Date.now(), ids: lista.map((i) => i.id) } }))
@@ -350,7 +383,30 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
         /* sin imágenes por ahora: la hoja muestra "cargando imagen…" y el texto sigue legible */
       })
       .finally(() => pedidas.current.delete(notaId))
+    pedidas.current.set(notaId, pedido)
+    return pedido
   }, [])
+
+  useEffect(() => {
+    const tic = () => setReloj(Date.now())
+    const id = window.setInterval(tic, 60_000)
+    const alVolver = () => document.visibilityState === 'visible' && tic()
+    document.addEventListener('visibilitychange', alVolver)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', alVolver)
+    }
+  }, [])
+
+  const VIGENCIA = 40 * 60_000
+  /** Abre el visor; si las URL de esa nota tienen más de 40 min, primero las renueva. */
+  async function abrirFoto(notaId: string, id: string, alt: string) {
+    pasarHoja()
+    setAmpliada({ notaId, id, alt })
+    const info = imagenesNota[notaId]
+    if (!urls[id]?.startsWith('blob:') && (!info || Date.now() - info.en > VIGENCIA)) await cargarImagenes(notaId)
+  }
+  const cerrarVisor = useCallback(() => setAmpliada(null), [])
 
   // Al abrir una nota se piden sus imágenes; las URL de Notion vencen en una hora, así que se renuevan antes.
   useEffect(() => {
@@ -358,14 +414,16 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     const info = imagenesNota[actual.id]
     const edad = info ? Date.now() - info.en : Infinity
     const faltan = idsImagen(actual.contenido, 'bloque').some((id) => !urls[id])
-    if (edad > 45 * 60_000 || (faltan && edad > 5_000)) cargarImagenes(actual.id)
-  }, [actual, imagenesNota, urls, cargarImagenes])
+    if (edad > VIGENCIA || (faltan && edad > 5_000)) void cargarImagenes(actual.id)
+    // reloj: vuelve a revisar la vigencia cada minuto y al volver a la pestaña
+  }, [actual, imagenesNota, urls, cargarImagenes, reloj, VIGENCIA])
 
   /** Una URL vencida: se vuelve a pedir la lista de esa nota (una vez por URL). */
   function imagenFallo(notaId: string, url: string | undefined) {
     if (!url || url.startsWith('blob:') || fallidas.current.has(url)) return
     fallidas.current.add(url)
     setImagenesNota((m) => ({ ...m, [notaId]: { en: 0, ids: m[notaId]?.ids ?? [] } }))
+    void cargarImagenes(notaId)
   }
 
   async function pegarImagenes(archivos: File[]) {
@@ -686,11 +744,23 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
                             {p.texto}
                           </p>
                         ) : (
-                          <Foto key={p.id} url={urls[p.id]} alt={p.alt} onFalla={() => imagenFallo(actual.id, urls[p.id])} />
+                          <Foto
+                            key={p.id}
+                            url={urls[p.id]}
+                            alt={p.alt}
+                            onFalla={() => imagenFallo(actual.id, urls[p.id])}
+                            onAbrir={() => void abrirFoto(actual.id, p.id, p.alt)}
+                          />
                         ),
                       )}
                       {extra.map((id) => (
-                        <Foto key={id} url={urls[id]} alt="imagen" onFalla={() => imagenFallo(actual.id, urls[id])} />
+                        <Foto
+                          key={id}
+                          url={urls[id]}
+                          alt="imagen"
+                          onFalla={() => imagenFallo(actual.id, urls[id])}
+                          onAbrir={() => void abrirFoto(actual.id, id, 'imagen')}
+                        />
                       ))}
                     </>
                   )
@@ -716,6 +786,14 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
             </div>
           )}
         </article>
+        {ampliada && (
+          <Visor
+            url={urls[ampliada.id]}
+            alt={ampliada.alt}
+            onCerrar={cerrarVisor}
+            onFalla={() => imagenFallo(ampliada.notaId, urls[ampliada.id])}
+          />
+        )}
       </div>
     </div>
   )
