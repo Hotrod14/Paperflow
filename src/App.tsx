@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Ambito, CambiosPendiente, Datos, Pendiente } from './lib/tipos.ts'
-import { actualizarAuditoria, actualizarPendiente, configurado, crearTarea, guardarCopia, leer, leerCopia, supabase } from './lib/api.ts'
+import { actualizarAuditoria, actualizarPendiente, configurado, crearTarea, eliminarTarea, guardarCopia, leer, leerCopia, restaurarTarea, supabase } from './lib/api.ts'
 import { auditoriaDe, construirHoy, construirSemana, integrarSueltas, PROYECTOS } from './lib/vista.ts'
 import { fechaLocal, haceCuanto } from './lib/fechas.ts'
 import { Papel, Ramita } from './components/Papel.tsx'
@@ -14,7 +14,7 @@ import { NuevaTarea, type DatosNuevaTarea } from './components/NuevaTarea.tsx'
 import type { AccionesTarjeta } from './components/Tarjeta.tsx'
 import { MenuUsuario } from './components/MenuUsuario.tsx'
 import { useApariencia } from './lib/tema.ts'
-import { pasarHoja, precargarSonidos, trazoLapiz } from './lib/sonido.ts'
+import { arrancarHoja, pasarHoja, precargarSonidos, trazoLapiz } from './lib/sonido.ts'
 import { Analytics } from '@vercel/analytics/react'
 
 type Ruta = 'hoy' | 'semana' | 'cuaderno'
@@ -25,6 +25,23 @@ const AVISO_MS = 6000
 function aplicarCambios(d: Datos, id: string, cambios: Partial<Pendiente>): Datos {
   const mezclar = <T extends { id: string }>(x: T): T => (x.id === id ? { ...x, ...cambios } : x)
   return { ...d, pendientes: d.pendientes.map(mezclar), sueltas: d.sueltas?.map(mezclar) }
+}
+
+/** Saca una tarea de la vista (viva en "Pendientes" o en "Tareas sueltas") y dice de dónde salió, para poder reponerla. */
+function quitarTarea(d: Datos, id: string): { datos: Datos; pendiente?: Pendiente; suelta?: NonNullable<Datos['sueltas']>[number] } {
+  return {
+    datos: { ...d, pendientes: d.pendientes.filter((x) => x.id !== id), sueltas: d.sueltas?.filter((x) => x.id !== id) },
+    pendiente: d.pendientes.find((x) => x.id === id),
+    suelta: d.sueltas?.find((x) => x.id === id),
+  }
+}
+
+function reponerTarea(d: Datos, q: { pendiente?: Pendiente; suelta?: NonNullable<Datos['sueltas']>[number] }): Datos {
+  return {
+    ...d,
+    pendientes: q.pendiente && !d.pendientes.some((x) => x.id === q.pendiente!.id) ? [...d.pendientes, q.pendiente] : d.pendientes,
+    sueltas: q.suelta && !(d.sueltas ?? []).some((x) => x.id === q.suelta!.id) ? [...(d.sueltas ?? []), q.suelta] : d.sueltas,
+  }
 }
 
 function rutaActual(): Ruta {
@@ -200,6 +217,47 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
     [cambiarPendiente, mostrarAviso, reabrir, hoy, datos],
   )
 
+  // ---- Eliminar: va a la papelera de Notion; el aviso permite deshacer (la saca de la papelera).
+  const eliminar = useCallback(
+    (p: Pendiente) => {
+      let quitada: ReturnType<typeof quitarTarea> | null = null
+      arrancarHoja()
+      setDetalleId(null)
+      setDatos((d) => {
+        if (!d) return d
+        quitada = quitarTarea(d, p.id)
+        guardarCopia(quitada.datos)
+        return quitada.datos
+      })
+      const reponer = () =>
+        setDatos((d) => {
+          if (!d || !quitada) return d
+          const sig = reponerTarea(d, quitada)
+          guardarCopia(sig)
+          return sig
+        })
+      eliminarTarea(p.id).then(
+        () =>
+          mostrarAviso({
+            texto: `Tarea eliminada: ${p.titulo}`,
+            deshacer: () => {
+              pasarHoja()
+              reponer()
+              restaurarTarea(p.id).catch((e) => {
+                setDatos((d) => (d ? quitarTarea(d, p.id).datos : d))
+                mostrarAviso({ texto: `No se pudo recuperar: ${e instanceof Error ? e.message : 'error'}`, error: true })
+              })
+            },
+          }),
+        (e) => {
+          reponer()
+          mostrarAviso({ texto: `No se eliminó en Notion: ${e instanceof Error ? e.message : 'error'}`, error: true })
+        },
+      )
+    },
+    [mostrarAviso],
+  )
+
   // ---- Tarea suelta: se crea en Notion y se agrega a la vista con el id real.
   const crear = useCallback(
     async (d: DatosNuevaTarea) => {
@@ -361,6 +419,7 @@ function Escritorio({ correo, apariencia }: { correo: string; apariencia: Return
             acciones.marcarHecho(detalle)
             setDetalleId(null)
           }}
+          onEliminar={() => eliminar(detalle)}
         />
       )}
 

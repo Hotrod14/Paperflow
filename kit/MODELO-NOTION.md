@@ -64,7 +64,7 @@ Título ("Revisión AAAA-MM-DD") · Fecha · Resumen · Cuerpo con hallazgos y p
 - **Crítica** = parte del problema o meta inicial del contenedor. **Secundaria** = apareció en el camino.
 - Ámbito Trabajo y Personal **no se mezclan** en las vistas.
 - Al cerrar se registran siempre: Estado = hecho · Fecha de cierre · Cerrado por · Evidencia.
-- Nada se borra desde la app ni desde Claude Code, salvo notas del cuaderno (a la papelera, recuperables).
+- Desde la app, la persona puede eliminar tareas y notas: van a la papelera de Notion, con confirmación y deshacer. Los contenedores no se eliminan desde la app. Claude Code nunca elimina.
 - Sin datos reales sensibles.
 
 ## 4. Cómo se generaliza

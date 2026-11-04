@@ -7,6 +7,8 @@
 //   { accion: "actualizarAuditoria", id, cambios }
 //   { accion: "crearTarea", nueva: { titulo, proyecto, ambito, nota?, enFoco? } }
 //       → crea una fila en la base "Tareas sueltas"
+//   { accion: "eliminarTarea", id } / { accion: "restaurarTarea", id }  → papelera de Notion
+//       (pendientes o tareas sueltas)
 //   { accion: "leerNotas" }                              → notas del cuaderno
 //   { accion: "crearNota", nota: { titulo?, contenido?, proyecto?, fijada? } }
 //   { accion: "actualizarNota", id, cambios }
@@ -119,6 +121,21 @@ Deno.serve(async (req) => {
             ]
           : [{ dataSource: DS_AUDITORIAS, database: DB_AUDITORIAS }]
       await actualizarPagina(body.id, esperado, props)
+      cache = null
+      return json(req, { ok: true })
+    }
+
+    if (body?.accion === 'eliminarTarea' || body?.accion === 'restaurarTarea') {
+      if (typeof body.id !== 'string' || !ID_RE.test(body.id)) throw new ErrorHttp('id inválido')
+      // Solo pendientes y tareas sueltas: las auditorías no se eliminan desde la app.
+      await aPapelera(
+        body.id,
+        [
+          { dataSource: DS_PENDIENTES, database: DB_PENDIENTES },
+          { dataSource: DS_SUELTAS, database: DB_SUELTAS },
+        ],
+        body.accion === 'eliminarTarea',
+      )
       cache = null
       return json(req, { ok: true })
     }

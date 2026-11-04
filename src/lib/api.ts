@@ -36,6 +36,10 @@ export const actualizarPendiente = (id: string, cambios: CambiosPendiente) =>
 export const actualizarAuditoria = (id: string, cambios: CambiosAuditoria) =>
   llamar<{ ok: true }>({ accion: 'actualizarAuditoria', id, cambios })
 
+/** Manda un pendiente o una tarea suelta a la papelera de Notion (recuperable). */
+export const eliminarTarea = (id: string) => llamar<{ ok: true }>({ accion: 'eliminarTarea', id })
+export const restaurarTarea = (id: string) => llamar<{ ok: true }>({ accion: 'restaurarTarea', id })
+
 export const crearTarea = (nueva: { titulo: string; proyecto: string; ambito: Ambito; nota?: string; enFoco?: string | null }) =>
   llamar<TareaSuelta>({ accion: 'crearTarea', nueva })
 

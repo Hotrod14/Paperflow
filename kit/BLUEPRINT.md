@@ -77,6 +77,7 @@ Un solo endpoint: `POST /functions/v1/<nombre>` con `Authorization: Bearer <jwt>
 | `actualizarTarea` | `{ id, cambios }` | tarea actualizada. Sirve para tareas y tareas sueltas |
 | `actualizarContenedor` | `{ id, cambios }` | contenedor actualizado (solo Estado) |
 | `crearTarea` | `{ nueva: { titulo, proyecto, ambito?, nota?, enFoco? } }` | tarea suelta creada |
+| `eliminarTarea` · `restaurarTarea` | `{ id }` | `{ ok }` (papelera de Notion; tareas y tareas sueltas) |
 | `leerNotas` | `{}` | `{ notas }` |
 | `crearNota` | `{ nota: { titulo?, contenido?, proyecto?, fijada? } }` | nota |
 | `actualizarNota` | `{ id, cambios }` | nota |

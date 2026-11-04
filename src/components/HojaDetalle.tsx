@@ -9,15 +9,18 @@ export function HojaDetalle({
   onCerrar,
   onGuardarEvidencia,
   onMarcarHecho,
+  onEliminar,
 }: {
   p: Pendiente
   auditoria: Auditoria | null
   onCerrar: () => void
   onGuardarEvidencia: (texto: string) => void
   onMarcarHecho: () => void
+  onEliminar: () => void
 }) {
   const [evidencia, setEvidencia] = useState(p.evidencia)
   const [copiado, setCopiado] = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
   const cerrarRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -112,6 +115,23 @@ export function HojaDetalle({
             <a className="btn-texto" href={enlaceAuditoria} target="_blank" rel="noreferrer">
               abrir auditoría
             </a>
+          )}
+        </div>
+        <div className="detalle__eliminar">
+          {confirmando ? (
+            <div role="group" aria-label="Confirmar eliminación" className="detalle__confirmar">
+              <span className="detalle__pregunta">¿Eliminar esta tarea? Se va a la papelera de Notion.</span>
+              <button type="button" className="btn-mano btn-mano--rojo" onClick={onEliminar}>
+                sí, eliminar
+              </button>
+              <button type="button" className="btn-texto btn-texto--suave" onClick={() => setConfirmando(false)}>
+                no
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn-texto btn-texto--rojo" onClick={() => setConfirmando(true)}>
+              🗑️ eliminar tarea
+            </button>
           )}
         </div>
         {p.cerradoPor && (

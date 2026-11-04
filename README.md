@@ -22,7 +22,7 @@ Notion · bases "Auditorías", "Pendientes", "Tareas sueltas" y "Cuaderno de not
 ```
 
 - Acciones de la función:
-  - tareas: `leer`, `actualizarPendiente`, `actualizarAuditoria` y `crearTarea`
+  - tareas: `leer`, `actualizarPendiente`, `actualizarAuditoria`, `crearTarea`, `eliminarTarea` y `restaurarTarea`
   - cuaderno: `leerNotas`, `crearNota`, `actualizarNota`, `eliminarNota`, `restaurarNota`, `subirImagen` y `leerImagenes`
 - `crearTarea` solo crea filas en la base **"Tareas sueltas"** (separada de Auditorías y Pendientes).
 - Solo se pueden escribir estos campos:
@@ -111,6 +111,8 @@ Para lo espontáneo ("me pidieron revisar los links de Ruta Digital"):
 1. En **Hoy**, botón **+ tarea suelta**: escribe la tarea, elige el proyecto y, si quieres, márcala para "para hoy".
 2. Queda en la base **"Tareas sueltas"** de Notion (Tarea, Proyecto, Ámbito, Estado, En foco, Nota…) y aparece en su propio apartado de Hoy.
 3. Se cierra igual que cualquier pendiente: marcando la casilla. En Semana aparece como "Tareas sueltas · proyecto".
+
+Cualquier pendiente o tarea suelta se puede **eliminar** desde su detalle (🗑️ eliminar tarea → confirmar). Va a la papelera de Notion y el aviso trae **deshacer**. Las auditorías no se eliminan desde la app.
 
 Los proyectos disponibles son las opciones de la propiedad Proyecto (Kefuri, Ruta Digital, Paperflow, Tecnopolis, Cap Ideas, LBP-MMA, Otro). Para sumar uno, agrégalo en Notion y en `PROYECTOS` de `mapeo.ts`.
 
