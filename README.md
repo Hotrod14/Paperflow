@@ -112,7 +112,7 @@ Para lo espontáneo ("me pidieron revisar los links de Ruta Digital"):
 2. Queda en la base **"Tareas sueltas"** de Notion (Tarea, Proyecto, Ámbito, Estado, En foco, Nota…) y aparece en su propio apartado de Hoy.
 3. Se cierra igual que cualquier pendiente: marcando la casilla. En Semana aparece como "Tareas sueltas · proyecto".
 
-Los proyectos disponibles son las opciones de la propiedad Proyecto (Kefuri, Ruta Digital, Paperflow, Tecnopolis, Cap Ideas, Otro). Para sumar uno, agrégalo en Notion y en `PROYECTOS` de `mapeo.ts`.
+Los proyectos disponibles son las opciones de la propiedad Proyecto (Kefuri, Ruta Digital, Paperflow, Tecnopolis, Cap Ideas, LBP-MMA, Otro). Para sumar uno, agrégalo en Notion y en `PROYECTOS` de `mapeo.ts`.
 
 ## Reglas de la vista
 

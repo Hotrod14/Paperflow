@@ -234,7 +234,7 @@ export function propiedadesAuditoria(cambios: Record<string, unknown>): Record<s
 
 /** Nombre con que la vista agrupa las tareas sueltas de un proyecto. */
 export const NOMBRE_SUELTAS = 'Tareas sueltas'
-export const PROYECTOS = ['Kefuri', 'Ruta Digital', 'Paperflow', 'Tecnopolis', 'Cap Ideas', 'Otro'] as const
+export const PROYECTOS = ['Kefuri', 'Ruta Digital', 'Paperflow', 'Tecnopolis', 'Cap Ideas', 'LBP-MMA', 'Otro'] as const
 export const AMBITOS = ['Trabajo', 'Personal'] as const
 
 export interface TareaSuelta {
