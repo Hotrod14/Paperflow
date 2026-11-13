@@ -1,6 +1,7 @@
 // Lógica pura del cuaderno de notas: orden, búsqueda y textos de fecha.
 import type { Nota } from './tipos.ts'
 import { mapearMarcas, partesContenido, sinImagenes } from '../../supabase/functions/_shared/imagenes.ts'
+import { sinFormato } from './formato.ts'
 
 /** Fijadas primero; dentro de cada grupo, la última editada arriba. */
 export function ordenarNotas(notas: Nota[]): Nota[] {
@@ -17,7 +18,7 @@ const sinTildes = (s: string) =>
 export function filtrarNotas(notas: Nota[], consulta: string, proyecto: string | null = null): Nota[] {
   const q = sinTildes(consulta.trim())
   return notas.filter(
-    (n) => (!proyecto || n.proyecto === proyecto) && (!q || sinTildes(`${n.titulo}\n${sinImagenes(n.contenido)}`).includes(q)),
+    (n) => (!proyecto || n.proyecto === proyecto) && (!q || sinTildes(`${n.titulo}\n${sinFormato(sinImagenes(n.contenido))}`).includes(q)),
   )
 }
 
@@ -33,7 +34,7 @@ export function fechaCorta(iso: string, ahora: Date = new Date()): string {
 
 /** Primera línea con texto del contenido, para el índice cuando la nota no tiene título. */
 export function resumenNota(n: Nota, largo = 60): string {
-  const linea = sinImagenes(n.contenido).split('\n').find((l) => l.trim()) ?? ''
+  const linea = sinFormato(sinImagenes(n.contenido)).split('\n').find((l) => l.trim()) ?? ''
   return linea.length > largo ? `${linea.slice(0, largo - 1)}…` : linea
 }
 

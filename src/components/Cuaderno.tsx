@@ -6,7 +6,10 @@ import { fechaLarga, haceCuanto } from '../lib/fechas.ts'
 import { abrirTarea, arrancarHoja, pasarHoja, pegarCinta, trazoLapiz } from '../lib/sonido.ts'
 import { aBase64, esImagen, prepararImagen } from '../lib/imagen.ts'
 import { idsImagen, insertarImagen, marcaImagen, partesContenido } from '../../supabase/functions/_shared/imagenes.ts'
-import { PROYECTOS_NOTA } from '../../supabase/functions/_shared/mapeo.ts'
+import { PROYECTOS_NOTA, type Densidad } from '../../supabase/functions/_shared/mapeo.ts'
+import { alternarBloque, alternarCasilla, alternarMarca, aplicarColor, enterEnLista, insertarSeparador, type Cambio, type Color } from '../lib/formato.ts'
+import { BarraFormato } from './BarraFormato.tsx'
+import { HojaFormateada } from './HojaFormateada.tsx'
 import { createPortal } from 'react-dom'
 import { Papel } from './Papel.tsx'
 
@@ -46,7 +49,10 @@ function Foto({ url, alt, onFalla, onAbrir }: { url?: string; alt: string; onFal
   useLayoutEffect(() => {
     const m = marcoRef.current
     if (!m) return
-    const medir = () => setAlto(Math.ceil((m.offsetHeight + 24) / RENGLON) * RENGLON)
+    const medir = () => {
+      const r = renglonDe(m)
+      setAlto(Math.ceil((m.offsetHeight + 24) / r) * r)
+    }
     medir()
     const ro = new ResizeObserver(medir)
     ro.observe(m)
@@ -68,6 +74,8 @@ function Foto({ url, alt, onFalla, onAbrir }: { url?: string; alt: string; onFal
 }
 
 const RENGLON = 32
+/** Alto de renglón vigente en la hoja (depende de la densidad elegida). */
+const renglonDe = (el: Element) => parseFloat(getComputedStyle(el).getPropertyValue('--renglon')) || RENGLON
 
 /** Visor a pantalla completa. Pide una URL nueva si la que tiene ya venció. */
 function Visor({ url, alt, onCerrar, onFalla }: { url?: string; alt: string; onCerrar: () => void; onFalla: () => void }) {
@@ -99,7 +107,7 @@ function Visor({ url, alt, onCerrar, onFalla }: { url?: string; alt: string; onC
   )
 }
 /** contenido va con etiquetas [📷 imagen N]; fotos guarda N → marca completa (ver lib/cuaderno.ts). */
-type Borrador = { titulo: string; contenido: string; proyecto: string; fijada: boolean; fotos: Record<string, string> }
+type Borrador = { titulo: string; contenido: string; proyecto: string; fijada: boolean; densidad: Densidad; fotos: Record<string, string> }
 
 const NUEVA = '__nueva__'
 const MAX = 20000
@@ -119,6 +127,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   const [editando, setEditando] = useState(false)
   const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [previa, setPrevia] = useState(false)
   const [consulta, setConsulta] = useState('')
   const [filtro, setFiltro] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
@@ -182,7 +191,8 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
       : actual !== null &&
         (borrador.titulo !== actual.titulo ||
           deVista(borrador.contenido, borrador.fotos) !== actual.contenido ||
-          borrador.proyecto !== actual.proyecto))
+          borrador.proyecto !== actual.proyecto ||
+          borrador.densidad !== actual.densidad))
 
   const puedeSalir = () => !sucio || window.confirm('Tienes cambios sin guardar en esta hoja. ¿Descartarlos?')
 
@@ -206,7 +216,8 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     if (!puedeSalir()) return
     abrirTarea()
     setSeleccion(NUEVA)
-    setBorrador({ titulo: '', contenido: '', proyecto: filtro ?? 'General', fijada: false, fotos: {} })
+    setBorrador({ titulo: '', contenido: '', proyecto: filtro ?? 'General', fijada: false, densidad: 'Normal', fotos: {} })
+    setPrevia(false)
     setEditando(true)
     setMenu(false)
     setVista('hoja')
@@ -216,7 +227,15 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     if (!actual) return
     trazoLapiz()
     const vista = aVista(actual.contenido)
-    setBorrador({ titulo: actual.titulo, contenido: vista.texto, proyecto: actual.proyecto, fijada: actual.fijada, fotos: vista.fotos })
+    setBorrador({
+      titulo: actual.titulo,
+      contenido: vista.texto,
+      proyecto: actual.proyecto,
+      fijada: actual.fijada,
+      densidad: actual.densidad,
+      fotos: vista.fotos,
+    })
+    setPrevia(false)
     setEditando(true)
     setMenu(false)
   }
@@ -249,6 +268,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
           contenido: deVista(borrador.contenido, borrador.fotos),
           proyecto: borrador.proyecto,
           fijada: borrador.fijada,
+          densidad: borrador.densidad,
         })
         cambiarNotas((n) => [creada, ...n])
         if (idsImagen(creada.contenido, 'bloque').length) cargarImagenes(creada.id)
@@ -265,11 +285,12 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
       return
     }
     if (!actual) return
-    const cambios: { titulo?: string; contenido?: string; proyecto?: string } = {}
+    const cambios: { titulo?: string; contenido?: string; proyecto?: string; densidad?: Densidad } = {}
     const contenido = deVista(borrador.contenido, borrador.fotos)
     if (borrador.titulo !== actual.titulo) cambios.titulo = borrador.titulo
     if (contenido !== actual.contenido) cambios.contenido = contenido
     if (borrador.proyecto !== actual.proyecto) cambios.proyecto = borrador.proyecto
+    if (borrador.densidad !== actual.densidad) cambios.densidad = borrador.densidad
     setEditando(false)
     setBorrador(null)
     if (!Object.keys(cambios).length) return
@@ -283,6 +304,73 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     } catch (e) {
       cambiarNotas((n) => n.map((x) => (x.id === previa.id ? previa : x)))
       onAviso({ texto: `No se guardó en Notion: ${e instanceof Error ? e.message : 'error'}`, error: true })
+    }
+  }
+
+  /** Marca o desmarca una casilla directamente en la hoja (sin entrar a editar). */
+  async function alternarCasillaNota(n: number) {
+    if (!actual) return
+    const previa = actual
+    const contenido = alternarCasilla(previa.contenido, n)
+    trazoLapiz()
+    cambiarNotas((ns) => ns.map((x) => (x.id === previa.id ? { ...x, contenido } : x)))
+    try {
+      const guardada = await actualizarNota(previa.id, { contenido })
+      cambiarNotas((ns) => ns.map((x) => (x.id === guardada.id ? guardada : x)))
+    } catch (e) {
+      cambiarNotas((ns) => ns.map((x) => (x.id === previa.id ? previa : x)))
+      onAviso({ texto: `No se guardó en Notion: ${e instanceof Error ? e.message : 'error'}`, error: true })
+    }
+  }
+
+  // ---- Formato: cada cambio pasa por el área de texto para que Ctrl+Z lo deshaga.
+  function aplicarCambio(c: Cambio) {
+    const a = areaRef.current
+    if (!a) return
+    a.focus()
+    a.setSelectionRange(c.inicio, c.fin)
+    let hecho = false
+    try {
+      hecho = c.texto ? document.execCommand('insertText', false, c.texto) : c.inicio === c.fin || document.execCommand('delete')
+    } catch {
+      hecho = false
+    }
+    if (!hecho) {
+      a.setRangeText(c.texto, c.inicio, c.fin, 'end')
+      a.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    a.setSelectionRange(c.selInicio, c.selFin)
+  }
+  const conSeleccion = (f: (t: string, ini: number, fin: number) => Cambio) => {
+    const a = areaRef.current
+    if (a) aplicarCambio(f(a.value, a.selectionStart, a.selectionEnd))
+  }
+  const formatoBloque = (prefijo: string) => conSeleccion((t, i, f) => alternarBloque(t, i, f, prefijo))
+  const formatoMarca = (marca: string) => conSeleccion((t, i, f) => alternarMarca(t, i, f, marca))
+  const formatoColor = (color: Color | null) => conSeleccion((t, i, f) => aplicarColor(t, i, f, color))
+  const formatoSeparador = () => conSeleccion((t, i) => insertarSeparador(t, i))
+
+  /** Atajos dentro del área de texto. */
+  function teclasArea(e: KeyboardEventReact<HTMLTextAreaElement>) {
+    const mod = e.metaKey || e.ctrlKey
+    const k = e.key.toLowerCase()
+    const atajo = (f: () => void) => {
+      e.preventDefault()
+      f()
+    }
+    if (mod && !e.shiftKey && !e.altKey && k === 'b') return atajo(() => formatoMarca('**'))
+    if (mod && !e.shiftKey && !e.altKey && k === 'i') return atajo(() => formatoMarca('*'))
+    if (mod && e.shiftKey && k === 'x') return atajo(() => formatoMarca('~~'))
+    if (mod && e.shiftKey && k === 'h') return atajo(() => formatoMarca('=='))
+    if (mod && e.altKey && ['1', '2', '3'].includes(e.code.replace('Digit', ''))) {
+      const n = Number(e.code.replace('Digit', ''))
+      return atajo(() => formatoBloque(`${'#'.repeat(n)} `))
+    }
+    if (e.key === 'Enter' && !mod && !e.shiftKey && !e.altKey && !e.nativeEvent.isComposing) {
+      const a = e.currentTarget
+      if (a.selectionStart !== a.selectionEnd) return
+      const c = enterEnLista(a.value, a.selectionStart)
+      if (c) atajo(() => aplicarCambio(c))
     }
   }
 
@@ -350,12 +438,18 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   }, [editando, seleccion])
 
   // El área de texto crece con el contenido para que los renglones sigan la hoja.
+  // Para medir, el área se achica un instante: el contenedor fija su alto mientras tanto para que la
+  // página no se acorte y el navegador no mueva la vista hacia arriba al escribir en las últimas líneas.
   useLayoutEffect(() => {
     const a = areaRef.current
     if (!a) return
+    const caja = a.parentElement
+    const r = renglonDe(a)
+    if (caja) caja.style.minHeight = `${caja.offsetHeight}px`
     a.style.height = 'auto'
-    a.style.height = `${Math.max(a.scrollHeight, 12 * 32)}px`
-  }, [borrador?.contenido, editando])
+    a.style.height = `${Math.max(Math.ceil(a.scrollHeight / r) * r, 12 * r)}px`
+    if (caja) caja.style.minHeight = ''
+  }, [borrador?.contenido, borrador?.densidad, editando, previa])
 
   // Cierra el menú al tocar fuera.
   useEffect(() => {
@@ -563,7 +657,11 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
         {enLateral ? createPortal(<div className="cuaderno__indice cuaderno__indice--lateral">{indice}</div>, lateral!) : <div className="cuaderno__indice">{indice}</div>}
 
         {/* ---------------- Hoja abierta */}
-        <article className="cuaderno__hoja" aria-label={actual ? actual.titulo || 'Nota sin título' : 'Hoja'}>
+        <article
+          className="cuaderno__hoja"
+          data-densidad={(editando && borrador ? borrador.densidad : actual?.densidad) ?? 'Normal'}
+          aria-label={actual ? actual.titulo || 'Nota sin título' : 'Hoja'}
+        >
           <div className="cuaderno__espiral" aria-hidden="true">
             {Array.from({ length: ANILLOS }, (_, i) => (
               <span key={i} className="anillo" />
@@ -648,11 +746,37 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
                   </button>
                 ))}
               </div>
+              <BarraFormato
+                onBloque={formatoBloque}
+                onMarca={formatoMarca}
+                onColor={formatoColor}
+                onSeparador={formatoSeparador}
+                densidad={borrador.densidad}
+                onDensidad={(densidad) => {
+                  setBorrador({ ...borrador, densidad })
+                  if (!previa) requestAnimationFrame(() => areaRef.current?.focus())
+                }}
+                previa={previa}
+                onPrevia={() => {
+                  pasarHoja()
+                  setPrevia(!previa)
+                  if (previa) requestAnimationFrame(() => areaRef.current?.focus())
+                }}
+              />
+              {previa ? (
+                <div className="cuaderno__cuerpo cuaderno__cuerpo--previa" onDoubleClick={() => setPrevia(false)} title="doble clic para seguir escribiendo">
+                  <HojaFormateada
+                    contenido={deVista(borrador.contenido, borrador.fotos)}
+                    foto={(id, alt) => <Foto url={urls[id]} alt={alt} />}
+                  />
+                </div>
+              ) : (
               <div className="cuaderno__cuerpo">
                 <label htmlFor="nota-contenido" className="sr">
                   Contenido
                 </label>
                 <textarea
+                  onKeyDown={teclasArea}
                   id="nota-contenido"
                   ref={areaRef}
                   className="cuaderno__area"
@@ -677,6 +801,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
                   }}
                 />
               </div>
+              )}
               {(() => {
                 const fotos = fotosEnVista(borrador.contenido, borrador.fotos)
                 if (!fotos.length && !subiendo) return null
@@ -730,41 +855,18 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
             <div className="cuaderno__lectura">
               <h2 className="cuaderno__titulo">{actual.titulo || <span className="suave">sin título</span>}</h2>
               <div className="cuaderno__cuerpo" onDoubleClick={editar} title="doble clic para editar">
-                {(() => {
-                  const partes = partesContenido(actual.contenido)
-                  // Imágenes agregadas directo en la página de Notion (sin marca en el texto): van al final.
-                  const marcadas = new Set(partes.flatMap((p) => (p.tipo === 'imagen' ? [p.id] : [])))
-                  const extra = (imagenesNota[actual.id]?.ids ?? []).filter((id) => !marcadas.has(id))
-                  if (!partes.length && !extra.length) return <p className="cuaderno__texto suave">(hoja en blanco)</p>
-                  return (
-                    <>
-                      {partes.map((p, i) =>
-                        p.tipo === 'texto' ? (
-                          <p key={`t${i}`} className="cuaderno__texto">
-                            {p.texto}
-                          </p>
-                        ) : (
-                          <Foto
-                            key={p.id}
-                            url={urls[p.id]}
-                            alt={p.alt}
-                            onFalla={() => imagenFallo(actual.id, urls[p.id])}
-                            onAbrir={() => void abrirFoto(actual.id, p.id, p.alt)}
-                          />
-                        ),
-                      )}
-                      {extra.map((id) => (
-                        <Foto
-                          key={id}
-                          url={urls[id]}
-                          alt="imagen"
-                          onFalla={() => imagenFallo(actual.id, urls[id])}
-                          onAbrir={() => void abrirFoto(actual.id, id, 'imagen')}
-                        />
-                      ))}
-                    </>
-                  )
-                })()}
+                <HojaFormateada
+                  contenido={actual.contenido}
+                  extra={(() => {
+                    // Imágenes agregadas directo en la página de Notion (sin marca en el texto): van al final.
+                    const marcadas = new Set(partesContenido(actual.contenido).flatMap((p) => (p.tipo === 'imagen' ? [p.id] : [])))
+                    return (imagenesNota[actual.id]?.ids ?? []).filter((id) => !marcadas.has(id))
+                  })()}
+                  onCasilla={(n) => void alternarCasillaNota(n)}
+                  foto={(id, alt) => (
+                    <Foto url={urls[id]} alt={alt} onFalla={() => imagenFallo(actual.id, urls[id])} onAbrir={() => void abrirFoto(actual.id, id, alt)} />
+                  )}
+                />
               </div>
               <p className="datos cuaderno__pie">
                 {actual.proyecto.toLowerCase()} · editada {haceCuanto(actual.editada)}

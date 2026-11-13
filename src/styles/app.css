@@ -151,7 +151,7 @@ a { color: var(--azul); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------- Mesa y decoración ---------- */
-.mesa { position: relative; min-height: 100vh; overflow-x: hidden; }
+.mesa { position: relative; min-height: 100vh; overflow-x: hidden; overflow-x: clip; }
 .ramita { position: fixed; right: -30px; bottom: -20px; pointer-events: none; opacity: 0.55; color: var(--hoja-verde); }
 .marco {
   max-width: 1440px; margin: 0 auto; padding: 32px 28px 72px;
@@ -322,6 +322,10 @@ a { color: var(--azul); }
 /* La hoja: papel con renglones azules, margen rojo y espiral a la izquierda. */
 .cuaderno__hoja {
   --renglon: 32px;
+  --letra: 18px;
+  /* Tintas del cuaderno (contraste AA sobre el papel). */
+  --t-rojo: var(--critico); --t-azul: var(--azul); --t-verde: #2f6b34; --t-naranjo: #9a4f0c; --t-morado: #64418a; --t-gris: var(--tinta-2);
+  --marcador: rgba(250, 215, 70, 0.55);
   --renglon-color: color-mix(in srgb, var(--azul) 24%, transparent);
   --margen: color-mix(in srgb, var(--critico) 50%, transparent);
   position: relative; min-height: 680px; padding: 22px clamp(20px, 4vw, 48px) 48px 104px;
@@ -360,7 +364,72 @@ a { color: var(--azul); }
   background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--renglon) - 1px), var(--renglon-color) calc(var(--renglon) - 1px), var(--renglon-color) var(--renglon));
   background-attachment: local;
 }
-.cuaderno__texto, .cuaderno__area { margin: 0; font-family: var(--lectura); font-size: 18px; line-height: var(--renglon); color: var(--tinta); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cuaderno__texto, .cuaderno__area { margin: 0; font-family: var(--lectura); font-size: var(--letra); line-height: var(--renglon); color: var(--tinta); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Densidad: separación de renglones de cada hoja. */
+.cuaderno__hoja[data-densidad='Compacta'] { --renglon: 26px; --letra: 16px; }
+.cuaderno__hoja[data-densidad='Amplia'] { --renglon: 40px; --letra: 19px; }
+:root[data-tema='oscuro'] .cuaderno__hoja { --t-verde: #9fd39a; --t-naranjo: #f0ab66; --t-morado: #c9aef0; --marcador: rgba(214, 178, 40, 0.38); }
+@media (prefers-color-scheme: dark) { :root:not([data-tema='claro']) .cuaderno__hoja { --t-verde: #9fd39a; --t-naranjo: #f0ab66; --t-morado: #c9aef0; --marcador: rgba(214, 178, 40, 0.38); } }
+
+/* Jerarquía en la hoja: cada bloque ocupa renglones completos para que el texto siga las líneas. */
+.cuaderno__texto { white-space: normal; }
+.bloque { margin: 0; min-height: var(--renglon); line-height: var(--renglon); white-space: pre-wrap; font: inherit; }
+.bloque--h1 { font-family: var(--manuscrita); font-weight: 700; font-size: calc(var(--renglon) * 1.12); line-height: calc(var(--renglon) * 2); min-height: calc(var(--renglon) * 2); }
+.bloque--h2 { font-family: var(--manuscrita); font-weight: 700; font-size: calc(var(--renglon) * 0.86); }
+.bloque--h3 { font-family: var(--datos); font-weight: 700; font-size: calc(var(--letra) * 0.74); letter-spacing: 0.1em; text-transform: uppercase; color: var(--azul); }
+.bloque--lista { position: relative; padding-left: 1.5em; }
+.bloque--lista::before { content: '•'; position: absolute; left: 0.45em; color: var(--tinta-2); }
+.bloque--casilla { display: flex; align-items: flex-start; gap: 0.55em; }
+.casilla-nota {
+  flex: none; width: calc(var(--renglon) * 0.6); height: calc(var(--renglon) * 0.6); margin-top: calc(var(--renglon) * 0.2);
+  display: grid; place-items: center; padding: 0; font: 700 calc(var(--renglon) * 0.45) / 1 var(--lectura); color: var(--azul);
+  border: 1.5px solid var(--tinta-2); border-radius: 3px 5px 3px 4px; background: transparent; cursor: pointer;
+}
+.casilla-nota:disabled { cursor: default; }
+.casilla-nota:not(:disabled):hover { border-color: var(--azul); }
+.bloque--casilla.es-hecho > span { text-decoration: line-through; color: var(--tinta-2); }
+.bloque--cita { padding-left: 14px; border-left: 3px solid var(--secundario); background: color-mix(in srgb, var(--secundario) 9%, transparent); font-style: italic; }
+.bloque--separador { border: 0; height: var(--renglon); background: linear-gradient(to bottom, transparent calc(50% - 1px), var(--tinta-2) calc(50% - 1px), var(--tinta-2) calc(50% + 1px), transparent calc(50% + 1px)); -webkit-mask: repeating-linear-gradient(90deg, #000 0 10px, transparent 10px 16px); mask: repeating-linear-gradient(90deg, #000 0 10px, transparent 10px 16px); opacity: 0.6; }
+.resaltado { color: inherit; background: linear-gradient(100deg, transparent 2%, var(--marcador, rgba(250, 215, 70, 0.55)) 4%, var(--marcador, rgba(250, 215, 70, 0.55)) 96%, transparent 98%); padding: 0 0.12em; border-radius: 0.3em 0.1em; }
+.codigo { font-family: var(--datos); font-size: 0.88em; padding: 0 0.3em; border-radius: 3px; background: color-mix(in srgb, var(--tinta) 8%, transparent); }
+.tinta-rojo { color: var(--t-rojo); } .tinta-azul { color: var(--t-azul); } .tinta-verde { color: var(--t-verde); }
+.tinta-naranjo { color: var(--t-naranjo); } .tinta-morado { color: var(--t-morado); } .tinta-gris { color: var(--t-gris); }
+
+/* Estuche de herramientas del editor: queda a la vista mientras se escribe en las últimas líneas. */
+.cuaderno__herramientas {
+  position: sticky; top: 10px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin: 4px 0 14px; padding: 6px 8px; background: var(--papel); border: 1px solid var(--linea-2);
+  border-radius: var(--a-mano); box-shadow: 0 4px 12px -6px var(--sombra);
+}
+.herramientas__grupo { display: flex; align-items: center; gap: 2px; padding-right: 10px; border-right: 1px dashed var(--linea-2); }
+.herramientas__grupo:last-of-type { border-right: 0; }
+.herramientas__densidad { gap: 4px; }
+.herramientas__densidad > .datos { font-size: 11px; color: var(--tinta-2); margin-right: 2px; }
+.herramienta {
+  min-width: 36px; min-height: 36px; padding: 0 8px; display: inline-grid; place-items: center;
+  font: 17px/1 var(--lectura); color: var(--tinta); background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+}
+.herramienta:hover { background: color-mix(in srgb, var(--azul) 9%, transparent); }
+.herramienta[aria-pressed='true'] { border-color: var(--azul); color: var(--azul); background: color-mix(in srgb, var(--azul) 10%, transparent); }
+.herramienta--h1 { font: 700 21px/1 var(--manuscrita); }
+.herramienta--h2 { font: 700 17px/1 var(--manuscrita); }
+.herramienta--h3 { font: 700 11px/1 var(--datos); letter-spacing: 0.08em; color: var(--azul); }
+.herramienta--color { min-width: 30px; padding: 0 4px; }
+.herramienta--previa { margin-left: auto; font: 18px/1 var(--manuscrita); border-color: var(--linea-2); }
+.herramientas__densidad .herramienta { font: 16px/1 var(--manuscrita); padding: 0 6px; }
+.muestra { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--tinta) 25%, transparent); }
+.muestra--tinta { background: var(--tinta); }
+.muestra--rojo { background: var(--t-rojo); } .muestra--azul { background: var(--t-azul); } .muestra--verde { background: var(--t-verde); }
+.muestra--naranjo { background: var(--t-naranjo); } .muestra--morado { background: var(--t-morado); } .muestra--gris { background: var(--t-gris); }
+.cuaderno__cuerpo--previa { cursor: text; }
+/* La barra no debe ensanchar la hoja: en celular se desplaza de lado dentro de su ancho. */
+.cuaderno__hoja, .cuaderno__editor, .cuaderno__herramientas { min-width: 0; max-width: 100%; }
+@media (max-width: 720px) {
+  .cuaderno__herramientas { flex-wrap: nowrap; overflow-x: auto; top: 6px; scrollbar-width: thin; }
+  .herramientas__grupo { flex: none; }
+  .herramienta--previa { margin-left: 0; flex: none; }
+}
+
 /* Fotos pegadas con cinta sobre la hoja. El alto de .foto se redondea a renglones desde Cuaderno.tsx. */
 .foto { margin: 0; display: flex; align-items: center; }
 .foto__marco {

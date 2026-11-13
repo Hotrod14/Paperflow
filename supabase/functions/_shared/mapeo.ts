@@ -38,6 +38,7 @@ export const PROP = {
     contenido: 'Contenido',
     proyecto: 'Proyecto',
     fijada: 'Fijada',
+    densidad: 'Densidad',
   },
   // Base "Tareas sueltas": mismos nombres que Pendientes para estado, fechas, nota y cierre.
   sue: {
@@ -309,6 +310,9 @@ export function propiedadesNuevaTarea(n: Record<string, unknown>): Record<string
 export const PROYECTOS_NOTA = ['General', ...PROYECTOS] as const
 /** Notion entrega hasta 25 trozos por propiedad de texto: 10 trozos de 2000 caracteres caben de sobra. */
 export const MAX_CONTENIDO_NOTA = 20000
+/** Separación de renglones de la hoja. */
+export const DENSIDADES = ['Compacta', 'Normal', 'Amplia'] as const
+export type Densidad = (typeof DENSIDADES)[number]
 const TROZO = 2000
 
 export interface Nota {
@@ -317,6 +321,7 @@ export interface Nota {
   contenido: string
   proyecto: string
   fijada: boolean
+  densidad: Densidad
   creada: string
   editada: string
   notionUrl: string
@@ -330,6 +335,7 @@ export function aNota(pg: Pagina): Nota {
     contenido: texto(p[PROP.nota.contenido]),
     proyecto: seleccion(p[PROP.nota.proyecto]) ?? 'General',
     fijada: casilla(p[PROP.nota.fijada]),
+    densidad: ((DENSIDADES as readonly string[]).includes(seleccion(p[PROP.nota.densidad]) ?? '') ? seleccion(p[PROP.nota.densidad]) : 'Normal') as Densidad,
     // deno-lint-ignore no-explicit-any
     creada: (pg as any).created_time ?? pg.last_edited_time,
     editada: pg.last_edited_time,
@@ -348,12 +354,13 @@ export interface CambiosNota {
   contenido?: string
   proyecto?: string
   fijada?: boolean
+  densidad?: Densidad
 }
 
-/** Propiedades de una nota (nueva o editada). Solo título, contenido, proyecto y fijada. */
+/** Propiedades de una nota (nueva o editada). Solo título, contenido, proyecto, fijada y densidad. */
 // deno-lint-ignore no-explicit-any
 export function propiedadesNota(c: Record<string, unknown>, nueva = false): Record<string, any> {
-  const permitidos = ['titulo', 'contenido', 'proyecto', 'fijada']
+  const permitidos = ['titulo', 'contenido', 'proyecto', 'fijada', 'densidad']
   const extra = Object.keys(c).filter((k) => !permitidos.includes(k))
   if (extra.length) throw new ErrorCambios(`Campos no permitidos: ${extra.join(', ')}`)
   if (!nueva && !Object.keys(c).length) throw new ErrorCambios('Sin cambios')
@@ -377,6 +384,9 @@ export function propiedadesNota(c: Record<string, unknown>, nueva = false): Reco
   if ('fijada' in c) {
     if (typeof c.fijada !== 'boolean') throw new ErrorCambios('fijada: debe ser verdadero o falso')
     props[PROP.nota.fijada] = { checkbox: c.fijada }
+  }
+  if ('densidad' in c) {
+    props[PROP.nota.densidad] = { select: { name: validarOpcion(c.densidad, DENSIDADES, 'densidad') } }
   }
   return props
 }

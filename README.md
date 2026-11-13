@@ -135,6 +135,24 @@ Pestaña **cuaderno** (`#cuaderno`): notas para organizarse, guardadas en la bas
 - El índice busca sin distinguir tildes y filtra por proyecto. Las notas fijadas van primero.
 - Sonidos: abrir hoja, pasar hoja, trazo de lápiz al guardar, hoja arrancada al eliminar y cinta adhesiva al pegar una imagen.
 
+### Formato del texto
+
+El editor tiene una barra de herramientas fija arriba (sigue a la vista mientras escribes en las últimas líneas). Usa marcas simples dentro del texto, legibles también en Notion:
+
+| Qué | Marca | Atajo |
+|---|---|---|
+| Título · Subtítulo · Sección | `# ` · `## ` · `### ` al inicio de la línea | Ctrl+Alt+1 / 2 / 3 |
+| Negrita · Cursiva · Tachado | `**texto**` · `*texto*` · `~~texto~~` | Ctrl+B · Ctrl+I · Ctrl+Shift+X |
+| Resaltado (marcador) | `==texto==` | Ctrl+Shift+H |
+| Código | `` `texto` `` | |
+| Color (rojo, azul, verde, naranjo, morado, gris) | `{rojo:texto}` | |
+| Lista · Casilla · Destacado · Separador | `- ` · `- [ ] ` · `> ` · `---` | Enter sigue la lista |
+
+- **Renglones** (densidad): compacta, normal o amplia por hoja; se guarda en la propiedad *Densidad* de Notion.
+- **Vista previa**: muestra la hoja formateada sin salir de la edición.
+- Las casillas se marcan con un clic directo en la hoja, sin entrar a editar.
+- Todo se deshace con Ctrl+Z.
+
 ### Imágenes
 
 - Se pegan con `Ctrl/Cmd + V` (capturas o imágenes copiadas), arrastrándolas a la hoja o con el botón **📎 imagen**.

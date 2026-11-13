@@ -8,6 +8,7 @@ const nota = (o: Partial<Nota> & { id: string }): Nota => ({
   contenido: '',
   proyecto: 'General',
   fijada: false,
+  densidad: 'Normal',
   creada: '2026-10-20T10:00:00.000Z',
   editada: '2026-10-20T10:00:00.000Z',
   notionUrl: '',
