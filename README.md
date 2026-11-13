@@ -137,21 +137,18 @@ Pestaña **cuaderno** (`#cuaderno`): notas para organizarse, guardadas en la bas
 
 ### Formato del texto
 
-El editor tiene una barra de herramientas fija arriba (sigue a la vista mientras escribes en las últimas líneas). Usa marcas simples dentro del texto, legibles también en Notion:
+El cuaderno tiene un **editor visual** (TipTap/ProseMirror): se escribe viendo el formato, sin códigos a la vista. Se carga solo al empezar a escribir, así que no hace más pesada el resto de la app.
 
-| Qué | Marca | Atajo |
-|---|---|---|
-| Título · Subtítulo · Sección | `# ` · `## ` · `### ` al inicio de la línea | Ctrl+Alt+1 / 2 / 3 |
-| Negrita · Cursiva · Tachado | `**texto**` · `*texto*` · `~~texto~~` | Ctrl+B · Ctrl+I · Ctrl+Shift+X |
-| Resaltado (marcador) | `==texto==` | Ctrl+Shift+H |
-| Código | `` `texto` `` | |
-| Color (rojo, azul, verde, naranjo, morado, gris) | `{rojo:texto}` | |
-| Lista · Casilla · Destacado · Separador | `- ` · `- [ ] ` · `> ` · `---` | Enter sigue la lista |
+- **Barra fija** arriba (sigue a la vista al escribir abajo): deshacer y rehacer, Título, Subtítulo, Sección, Texto, negrita, cursiva, tachado, resaltado, código, 6 colores, lista, casillas, destacado, separador, quitar formato y densidad de renglones.
+- **Menú flotante** al seleccionar texto: énfasis y colores a mano.
+- **Atajos**: Ctrl+B, Ctrl+I, Ctrl+Shift+S (tachado), Ctrl+Shift+H (resaltar), Ctrl+E (código), Ctrl+Alt+1/2/3 (títulos), Ctrl+Alt+0 (texto), Ctrl+Shift+8 (lista), Ctrl+Shift+9 (casillas), Ctrl+Shift+B (destacado).
+- **Atajos al escribir**: `# `, `## `, `### `, `- `, `[ ] `, `> `, `---` al inicio de una línea se convierten solos.
+- Las imágenes se pegan, arrastran o insertan con 📎 dentro del texto; se seleccionan, se mueven arrastrando y se quitan con ✕.
+- **Renglones** (densidad): compacta, normal o amplia por hoja, en la propiedad *Densidad* de Notion.
+- Al leer, las casillas se marcan con un clic sin entrar a editar.
 
-- **Renglones** (densidad): compacta, normal o amplia por hoja; se guarda en la propiedad *Densidad* de Notion.
-- **Vista previa**: muestra la hoja formateada sin salir de la edición.
-- Las casillas se marcan con un clic directo en la hoja, sin entrar a editar.
-- Todo se deshace con Ctrl+Z.
+**Cómo se guarda**: el editor traduce a texto con marcas simples (`src/lib/editorDoc.ts`), legibles también en Notion:
+`# Título` · `## Subtítulo` · `### Sección` · `**negrita**` · `_cursiva_` · `~~tachado~~` · `==resaltado==` · `` `código` `` · `{rojo:texto}` · `- lista` · `- [ ] casilla` · `> destacado` · `---`. Las notas anteriores se abren igual.
 
 ### Imágenes
 

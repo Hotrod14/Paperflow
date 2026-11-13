@@ -415,20 +415,76 @@ a { color: var(--azul); }
 .herramienta--h2 { font: 700 17px/1 var(--manuscrita); }
 .herramienta--h3 { font: 700 11px/1 var(--datos); letter-spacing: 0.08em; color: var(--azul); }
 .herramienta--color { min-width: 30px; padding: 0 4px; }
-.herramienta--previa { margin-left: auto; font: 18px/1 var(--manuscrita); border-color: var(--linea-2); }
 .herramientas__densidad .herramienta { font: 16px/1 var(--manuscrita); padding: 0 6px; }
 .muestra { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--tinta) 25%, transparent); }
 .muestra--tinta { background: var(--tinta); }
 .muestra--rojo { background: var(--t-rojo); } .muestra--azul { background: var(--t-azul); } .muestra--verde { background: var(--t-verde); }
 .muestra--naranjo { background: var(--t-naranjo); } .muestra--morado { background: var(--t-morado); } .muestra--gris { background: var(--t-gris); }
-.cuaderno__cuerpo--previa { cursor: text; }
 /* La barra no debe ensanchar la hoja: en celular se desplaza de lado dentro de su ancho. */
 .cuaderno__hoja, .cuaderno__editor, .cuaderno__herramientas { min-width: 0; max-width: 100%; }
 @media (max-width: 720px) {
   .cuaderno__herramientas { flex-wrap: nowrap; overflow-x: auto; top: 6px; scrollbar-width: thin; }
   .herramientas__grupo { flex: none; }
-  .herramienta--previa { margin-left: 0; flex: none; }
 }
+
+/* Editor visual: se ve igual que la hoja leída (mismos renglones, tamaños y tintas). */
+.cuaderno__cargando-editor { font-size: 24px; margin: 12px 0; }
+.editor-nota {
+  outline: none; min-height: calc(var(--renglon) * 12); padding-bottom: var(--renglon);
+  font-family: var(--lectura); font-size: var(--letra); line-height: var(--renglon); color: var(--tinta);
+  white-space: pre-wrap; overflow-wrap: anywhere; caret-color: var(--azul);
+}
+.editor-nota :is(p, h1, h2, h3, ul, li, blockquote, hr, figure) { margin: 0; }
+.editor-nota p { min-height: var(--renglon); }
+.editor-nota h1 { font-family: var(--manuscrita); font-weight: 700; font-size: calc(var(--renglon) * 1.12); line-height: calc(var(--renglon) * 2); }
+.editor-nota h2 { font-family: var(--manuscrita); font-weight: 700; font-size: calc(var(--renglon) * 0.86); line-height: var(--renglon); }
+.editor-nota h3 { font-family: var(--datos); font-weight: 700; font-size: calc(var(--letra) * 0.74); letter-spacing: 0.1em; text-transform: uppercase; color: var(--azul); line-height: var(--renglon); }
+.editor-nota ul { padding: 0; list-style: none; }
+.editor-nota ul:not([data-type='taskList']) > li { position: relative; padding-left: 1.5em; }
+.editor-nota ul:not([data-type='taskList']) > li::before { content: '•'; position: absolute; left: 0.45em; color: var(--tinta-2); }
+.editor-nota ul[data-type='taskList'] > li { display: flex; align-items: flex-start; gap: 0.55em; }
+.editor-nota ul[data-type='taskList'] > li > label { flex: none; display: flex; margin-top: calc(var(--renglon) * 0.2); }
+.editor-nota ul[data-type='taskList'] > li > label > input {
+  appearance: none; -webkit-appearance: none; margin: 0; cursor: pointer;
+  width: calc(var(--renglon) * 0.6); height: calc(var(--renglon) * 0.6); display: grid; place-items: center;
+  border: 1.5px solid var(--tinta-2); border-radius: 3px 5px 3px 4px; background: transparent;
+  color: var(--azul); font: 700 calc(var(--renglon) * 0.45) / 1 var(--lectura);
+}
+.editor-nota ul[data-type='taskList'] > li > label > input:hover { border-color: var(--azul); }
+.editor-nota ul[data-type='taskList'] > li > label > input:checked::before { content: '✓'; }
+.editor-nota ul[data-type='taskList'] > li > label > input:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+.editor-nota ul[data-type='taskList'] > li > div { flex: 1; min-width: 0; }
+.editor-nota ul[data-type='taskList'] > li[data-checked='true'] > div { text-decoration: line-through; color: var(--tinta-2); }
+.editor-nota blockquote { padding-left: 14px; border-left: 3px solid var(--secundario); background: color-mix(in srgb, var(--secundario) 9%, transparent); font-style: italic; }
+.editor-nota hr {
+  border: 0; height: var(--renglon); cursor: pointer; opacity: 0.6;
+  background: linear-gradient(to bottom, transparent calc(50% - 1px), var(--tinta-2) calc(50% - 1px), var(--tinta-2) calc(50% + 1px), transparent calc(50% + 1px));
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 10px, transparent 10px 16px); mask: repeating-linear-gradient(90deg, #000 0 10px, transparent 10px 16px);
+}
+.editor-nota hr.ProseMirror-selectednode { opacity: 1; outline: 2px solid var(--azul); }
+.editor-nota code { font-family: var(--datos); font-size: 0.88em; padding: 0 0.3em; border-radius: 3px; background: color-mix(in srgb, var(--tinta) 8%, transparent); }
+.editor-nota p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; color: var(--tinta-2); opacity: 0.75; pointer-events: none; }
+.editor-nota ::selection { background: color-mix(in srgb, var(--azul) 22%, transparent); }
+/* Imagen dentro del editor: se puede seleccionar, arrastrar o quitar. */
+.foto-editor { position: relative; }
+.foto-editor.es-seleccionada .foto__marco { outline: 2px solid var(--azul); outline-offset: 3px; }
+.foto-editor .foto__abrir { cursor: grab; }
+.foto-editor__quitar {
+  position: absolute; top: 4px; left: min(540px, calc(100% - 30px)); width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--tinta-2); background: var(--papel); color: var(--tinta); font-size: 13px; line-height: 1; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s;
+}
+.foto-editor:hover .foto-editor__quitar, .foto-editor.es-seleccionada .foto-editor__quitar, .foto-editor__quitar:focus-visible { opacity: 1; }
+.foto-editor__quitar:hover { color: var(--critico); border-color: var(--critico); }
+/* Menú que aparece sobre el texto seleccionado. */
+.menu-flotante { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 8px; box-shadow: 0 8px 22px -6px var(--sombra); z-index: 20; }
+.menu-flotante .herramientas__grupo:last-child { border-right: 0; padding-right: 0; }
+.menu-flotante .herramienta { min-width: 32px; min-height: 32px; }
+.herramienta:disabled { opacity: 0.35; cursor: default; }
+.herramienta:disabled:hover { background: transparent; }
+.herramienta__borrar { text-decoration: line-through; text-decoration-color: var(--critico); font-weight: 600; }
+.cuaderno__subiendo { margin: 6px 0 0; color: var(--tinta-2); animation: latido 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .foto-editor__quitar { transition: none; } }
 
 /* Fotos pegadas con cinta sobre la hoja. El alto de .foto se redondea a renglones desde Cuaderno.tsx. */
 .foto { margin: 0; display: flex; align-items: center; }
@@ -459,22 +515,8 @@ a { color: var(--azul); }
 .foto__vacia { display: grid; place-items: center; width: 220px; height: 140px; color: var(--tinta-2); }
 :root[data-tema='oscuro'] { --foto-marco: #e6e0d2; }
 @media (prefers-color-scheme: dark) { :root:not([data-tema='claro']) { --foto-marco: #e6e0d2; } }
-.cuaderno__miniaturas { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 0; }
-/* Miniatura de tamaño fijo: la imagen se recorta (vertical u horizontal) y nunca empuja los botones. */
-.cuaderno__miniaturas { margin-bottom: 18px; }
-.cuaderno__miniaturas li { position: relative; flex: none; width: 76px; height: 64px; display: grid; place-items: center; background: var(--foto-marco, #fbfaf5); box-shadow: 0 1px 3px var(--sombra); }
-.cuaderno__miniaturas img { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); object-fit: cover; object-position: top; }
-.cuaderno__miniaturas button {
-  position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%;
-  border: 1px solid var(--tinta-2); background: var(--papel); color: var(--tinta); font-size: 12px; cursor: pointer; line-height: 1;
-}
-.cuaderno__numero { position: absolute; left: -6px; bottom: -6px; min-width: 20px; padding: 0 4px; border-radius: 10px; background: var(--tinta); color: var(--papel); font-size: 11px; text-align: center; }
-.cuaderno__miniaturas button:hover { color: var(--critico); border-color: var(--critico); }
-.cuaderno__subiendo { color: var(--tinta-2); animation: latido 1.2s ease-in-out infinite; }
 @keyframes latido { 50% { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) { .cuaderno__subiendo { animation: none; } }
-.cuaderno__area { display: block; width: 100%; padding: 0; border: none; background: transparent; resize: none; overflow: hidden; }
-.cuaderno__area:focus { outline: none; }
 .cuaderno__area::placeholder, .cuaderno__titulo--input::placeholder { color: var(--tinta-2); opacity: 0.7; }
 .cuaderno__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 20px; }
 .cuaderno__ayuda { margin-left: auto; font-size: 12px; }

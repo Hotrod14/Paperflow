@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as KeyboardEventReact } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as KeyboardEventReact } from 'react'
 import type { Nota } from '../lib/tipos.ts'
 import { actualizarNota, crearNota, eliminarNota, guardarCopiaNotas, leerCopiaNotas, leerImagenes, leerNotas, restaurarNota, subirImagen } from '../lib/api.ts'
-import { aVista, deVista, etiquetaFoto, fechaCorta, filtrarNotas, fotosEnVista, ordenarNotas, quitarFoto, resumenNota, siguienteFoto } from '../lib/cuaderno.ts'
+import { fechaCorta, filtrarNotas, ordenarNotas, resumenNota } from '../lib/cuaderno.ts'
 import { fechaLarga, haceCuanto } from '../lib/fechas.ts'
 import { abrirTarea, arrancarHoja, pasarHoja, pegarCinta, trazoLapiz } from '../lib/sonido.ts'
 import { aBase64, esImagen, prepararImagen } from '../lib/imagen.ts'
-import { idsImagen, insertarImagen, marcaImagen, partesContenido } from '../../supabase/functions/_shared/imagenes.ts'
+import { idsImagen, partesContenido } from '../../supabase/functions/_shared/imagenes.ts'
 import { PROYECTOS_NOTA, type Densidad } from '../../supabase/functions/_shared/mapeo.ts'
-import { alternarBloque, alternarCasilla, alternarMarca, aplicarColor, enterEnLista, insertarSeparador, type Cambio, type Color } from '../lib/formato.ts'
-import { BarraFormato } from './BarraFormato.tsx'
+import { alternarCasilla } from '../lib/formato.ts'
+import type { EditorNotaApi } from './EditorNota.tsx'
 import { HojaFormateada } from './HojaFormateada.tsx'
 import { createPortal } from 'react-dom'
 import { Papel } from './Papel.tsx'
+import { Foto } from './Foto.tsx'
+
+// El editor visual pesa: se carga recién al empezar a escribir.
+const EditorNota = lazy(() => import('./EditorNota.tsx'))
 
 /** true en pantallas anchas, donde el índice se muda a la columna del menú. */
 function useEscritorio() {
@@ -38,44 +42,6 @@ function useEscritorio() {
 }
 
 type Aviso = { texto: string; deshacer?: () => void; error?: boolean }
-
-/**
- * Una foto pegada en la hoja con cinta. Su alto se redondea a renglones completos
- * para que el texto que sigue caiga sobre las líneas.
- */
-function Foto({ url, alt, onFalla, onAbrir }: { url?: string; alt: string; onFalla?: () => void; onAbrir?: () => void }) {
-  const marcoRef = useRef<HTMLSpanElement>(null)
-  const [alto, setAlto] = useState<number | undefined>(undefined)
-  useLayoutEffect(() => {
-    const m = marcoRef.current
-    if (!m) return
-    const medir = () => {
-      const r = renglonDe(m)
-      setAlto(Math.ceil((m.offsetHeight + 24) / r) * r)
-    }
-    medir()
-    const ro = new ResizeObserver(medir)
-    ro.observe(m)
-    return () => ro.disconnect()
-  }, [url])
-  return (
-    <figure className="foto" style={{ height: alto }}>
-      <span className="foto__marco" ref={marcoRef}>
-        {url ? (
-          <button type="button" className="foto__abrir" onClick={onAbrir} title="ver en tamaño completo">
-            <img src={url} alt={alt} loading="lazy" onError={onFalla} />
-          </button>
-        ) : (
-          <span className="foto__vacia datos">cargando imagen…</span>
-        )}
-      </span>
-    </figure>
-  )
-}
-
-const RENGLON = 32
-/** Alto de renglón vigente en la hoja (depende de la densidad elegida). */
-const renglonDe = (el: Element) => parseFloat(getComputedStyle(el).getPropertyValue('--renglon')) || RENGLON
 
 /** Visor a pantalla completa. Pide una URL nueva si la que tiene ya venció. */
 function Visor({ url, alt, onCerrar, onFalla }: { url?: string; alt: string; onCerrar: () => void; onFalla: () => void }) {
@@ -106,8 +72,8 @@ function Visor({ url, alt, onCerrar, onFalla }: { url?: string; alt: string; onC
     document.body,
   )
 }
-/** contenido va con etiquetas [📷 imagen N]; fotos guarda N → marca completa (ver lib/cuaderno.ts). */
-type Borrador = { titulo: string; contenido: string; proyecto: string; fijada: boolean; densidad: Densidad; fotos: Record<string, string> }
+/** contenido: el mismo texto con marcas que se guarda en Notion (el editor visual lo traduce). */
+type Borrador = { titulo: string; contenido: string; proyecto: string; fijada: boolean; densidad: Densidad }
 
 const NUEVA = '__nueva__'
 const MAX = 20000
@@ -127,14 +93,13 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   const [editando, setEditando] = useState(false)
   const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [guardando, setGuardando] = useState(false)
-  const [previa, setPrevia] = useState(false)
   const [consulta, setConsulta] = useState('')
   const [filtro, setFiltro] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [vista, setVista] = useState<'indice' | 'hoja'>('indice')
   const tituloRef = useRef<HTMLInputElement>(null)
-  const areaRef = useRef<HTMLTextAreaElement>(null)
+  const editorRef = useRef<EditorNotaApi>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const archivoRef = useRef<HTMLInputElement>(null)
   // Imágenes: id (de bloque en Notion o de subida reciente) → URL para mostrarla.
@@ -190,7 +155,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
       ? Boolean(borrador.titulo.trim() || borrador.contenido.trim())
       : actual !== null &&
         (borrador.titulo !== actual.titulo ||
-          deVista(borrador.contenido, borrador.fotos) !== actual.contenido ||
+          borrador.contenido !== actual.contenido ||
           borrador.proyecto !== actual.proyecto ||
           borrador.densidad !== actual.densidad))
 
@@ -216,8 +181,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     if (!puedeSalir()) return
     abrirTarea()
     setSeleccion(NUEVA)
-    setBorrador({ titulo: '', contenido: '', proyecto: filtro ?? 'General', fijada: false, densidad: 'Normal', fotos: {} })
-    setPrevia(false)
+    setBorrador({ titulo: '', contenido: '', proyecto: filtro ?? 'General', fijada: false, densidad: 'Normal' })
     setEditando(true)
     setMenu(false)
     setVista('hoja')
@@ -226,16 +190,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   function editar() {
     if (!actual) return
     trazoLapiz()
-    const vista = aVista(actual.contenido)
-    setBorrador({
-      titulo: actual.titulo,
-      contenido: vista.texto,
-      proyecto: actual.proyecto,
-      fijada: actual.fijada,
-      densidad: actual.densidad,
-      fotos: vista.fotos,
-    })
-    setPrevia(false)
+    setBorrador({ titulo: actual.titulo, contenido: actual.contenido, proyecto: actual.proyecto, fijada: actual.fijada, densidad: actual.densidad })
     setEditando(true)
     setMenu(false)
   }
@@ -252,6 +207,10 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
 
   async function guardar() {
     if (!borrador || guardando) return
+    if (borrador.contenido.length > MAX) {
+      onAviso({ texto: `La hoja supera el máximo de ${MAX.toLocaleString('es-CL')} caracteres: acórtala para guardar`, error: true })
+      return
+    }
     if (subiendo > 0) {
       onAviso({ texto: 'Espera a que termine de pegarse la imagen' })
       return
@@ -265,7 +224,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
       try {
         const creada = await crearNota({
           titulo: borrador.titulo,
-          contenido: deVista(borrador.contenido, borrador.fotos),
+          contenido: borrador.contenido,
           proyecto: borrador.proyecto,
           fijada: borrador.fijada,
           densidad: borrador.densidad,
@@ -286,7 +245,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     }
     if (!actual) return
     const cambios: { titulo?: string; contenido?: string; proyecto?: string; densidad?: Densidad } = {}
-    const contenido = deVista(borrador.contenido, borrador.fotos)
+    const contenido = borrador.contenido
     if (borrador.titulo !== actual.titulo) cambios.titulo = borrador.titulo
     if (contenido !== actual.contenido) cambios.contenido = contenido
     if (borrador.proyecto !== actual.proyecto) cambios.proyecto = borrador.proyecto
@@ -323,56 +282,6 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     }
   }
 
-  // ---- Formato: cada cambio pasa por el área de texto para que Ctrl+Z lo deshaga.
-  function aplicarCambio(c: Cambio) {
-    const a = areaRef.current
-    if (!a) return
-    a.focus()
-    a.setSelectionRange(c.inicio, c.fin)
-    let hecho = false
-    try {
-      hecho = c.texto ? document.execCommand('insertText', false, c.texto) : c.inicio === c.fin || document.execCommand('delete')
-    } catch {
-      hecho = false
-    }
-    if (!hecho) {
-      a.setRangeText(c.texto, c.inicio, c.fin, 'end')
-      a.dispatchEvent(new Event('input', { bubbles: true }))
-    }
-    a.setSelectionRange(c.selInicio, c.selFin)
-  }
-  const conSeleccion = (f: (t: string, ini: number, fin: number) => Cambio) => {
-    const a = areaRef.current
-    if (a) aplicarCambio(f(a.value, a.selectionStart, a.selectionEnd))
-  }
-  const formatoBloque = (prefijo: string) => conSeleccion((t, i, f) => alternarBloque(t, i, f, prefijo))
-  const formatoMarca = (marca: string) => conSeleccion((t, i, f) => alternarMarca(t, i, f, marca))
-  const formatoColor = (color: Color | null) => conSeleccion((t, i, f) => aplicarColor(t, i, f, color))
-  const formatoSeparador = () => conSeleccion((t, i) => insertarSeparador(t, i))
-
-  /** Atajos dentro del área de texto. */
-  function teclasArea(e: KeyboardEventReact<HTMLTextAreaElement>) {
-    const mod = e.metaKey || e.ctrlKey
-    const k = e.key.toLowerCase()
-    const atajo = (f: () => void) => {
-      e.preventDefault()
-      f()
-    }
-    if (mod && !e.shiftKey && !e.altKey && k === 'b') return atajo(() => formatoMarca('**'))
-    if (mod && !e.shiftKey && !e.altKey && k === 'i') return atajo(() => formatoMarca('*'))
-    if (mod && e.shiftKey && k === 'x') return atajo(() => formatoMarca('~~'))
-    if (mod && e.shiftKey && k === 'h') return atajo(() => formatoMarca('=='))
-    if (mod && e.altKey && ['1', '2', '3'].includes(e.code.replace('Digit', ''))) {
-      const n = Number(e.code.replace('Digit', ''))
-      return atajo(() => formatoBloque(`${'#'.repeat(n)} `))
-    }
-    if (e.key === 'Enter' && !mod && !e.shiftKey && !e.altKey && !e.nativeEvent.isComposing) {
-      const a = e.currentTarget
-      if (a.selectionStart !== a.selectionEnd) return
-      const c = enterEnLista(a.value, a.selectionStart)
-      if (c) atajo(() => aplicarCambio(c))
-    }
-  }
 
   async function alternarFijada() {
     if (!actual) return
@@ -434,22 +343,9 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
   useEffect(() => {
     if (!editando) return
     if (seleccion === NUEVA) tituloRef.current?.focus()
-    else areaRef.current?.focus()
+    else requestAnimationFrame(() => editorRef.current?.enfocar())
   }, [editando, seleccion])
 
-  // El área de texto crece con el contenido para que los renglones sigan la hoja.
-  // Para medir, el área se achica un instante: el contenedor fija su alto mientras tanto para que la
-  // página no se acorte y el navegador no mueva la vista hacia arriba al escribir en las últimas líneas.
-  useLayoutEffect(() => {
-    const a = areaRef.current
-    if (!a) return
-    const caja = a.parentElement
-    const r = renglonDe(a)
-    if (caja) caja.style.minHeight = `${caja.offsetHeight}px`
-    a.style.height = 'auto'
-    a.style.height = `${Math.max(Math.ceil(a.scrollHeight / r) * r, 12 * r)}px`
-    if (caja) caja.style.minHeight = ''
-  }, [borrador?.contenido, borrador?.densidad, editando, previa])
 
   // Cierra el menú al tocar fuera.
   useEffect(() => {
@@ -532,19 +428,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
         const lista = await prepararImagen(archivo)
         const id = await subirImagen(lista.nombre, lista.tipo, await aBase64(lista.blob))
         setUrls((u) => ({ ...u, [id]: URL.createObjectURL(lista.blob) }))
-        const area = areaRef.current
-        const pos = area && document.activeElement === area ? area.selectionStart : Number.MAX_SAFE_INTEGER
-        let tras = 0
-        setBorrador((b) => {
-          if (!b) return b
-          const n = siguienteFoto(b.fotos)
-          const r = insertarImagen(b.contenido, pos, etiquetaFoto(n))
-          tras = r.pos
-          return { ...b, contenido: r.texto, fotos: { ...b.fotos, [n]: marcaImagen('archivo', id) } }
-        })
-        requestAnimationFrame(() => {
-          if (area && document.activeElement === area) area.setSelectionRange(tras, tras)
-        })
+        editorRef.current?.insertarImagen(id)
         pegarCinta()
       } catch (e) {
         onAviso({ texto: `No se pegó la imagen: ${e instanceof Error ? e.message : 'error'}`, error: true })
@@ -554,10 +438,6 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
     }
   }
 
-  function quitarDelBorrador(n: string) {
-    arrancarHoja()
-    setBorrador((b) => (b ? { ...b, contenido: quitarFoto(b.contenido, n) } : b))
-  }
 
   const fijadas = notas.filter((n) => n.fijada).length
   const fechaHoja = actual ? fechaLarga(new Date(actual.creada)) : fechaLarga()
@@ -735,7 +615,7 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
-                    areaRef.current?.focus()
+                    editorRef.current?.enfocar()
                   }
                 }}
               />
@@ -746,84 +626,23 @@ export function Cuaderno({ onAviso, lateral = null }: { onAviso: (a: Aviso) => v
                   </button>
                 ))}
               </div>
-              <BarraFormato
-                onBloque={formatoBloque}
-                onMarca={formatoMarca}
-                onColor={formatoColor}
-                onSeparador={formatoSeparador}
-                densidad={borrador.densidad}
-                onDensidad={(densidad) => {
-                  setBorrador({ ...borrador, densidad })
-                  if (!previa) requestAnimationFrame(() => areaRef.current?.focus())
-                }}
-                previa={previa}
-                onPrevia={() => {
-                  pasarHoja()
-                  setPrevia(!previa)
-                  if (previa) requestAnimationFrame(() => areaRef.current?.focus())
-                }}
-              />
-              {previa ? (
-                <div className="cuaderno__cuerpo cuaderno__cuerpo--previa" onDoubleClick={() => setPrevia(false)} title="doble clic para seguir escribiendo">
-                  <HojaFormateada
-                    contenido={deVista(borrador.contenido, borrador.fotos)}
-                    foto={(id, alt) => <Foto url={urls[id]} alt={alt} />}
-                  />
-                </div>
-              ) : (
-              <div className="cuaderno__cuerpo">
-                <label htmlFor="nota-contenido" className="sr">
-                  Contenido
-                </label>
-                <textarea
-                  onKeyDown={teclasArea}
-                  id="nota-contenido"
-                  ref={areaRef}
-                  className="cuaderno__area"
-                  value={borrador.contenido}
-                  maxLength={MAX}
-                  placeholder="escribe aquí… (ctrl + v pega imágenes)"
-                  onChange={(e) => setBorrador({ ...borrador, contenido: e.target.value })}
-                  onPaste={(e) => {
-                    // Captura o imagen copiada: se sube. Si también trae texto (Word, Excel…), se pega el texto como siempre.
-                    const archivos = Array.from(e.clipboardData.files)
-                    if (!archivos.length || e.clipboardData.getData('text/plain')) return
-                    e.preventDefault()
-                    void pegarImagenes(archivos)
-                  }}
-                  onDragOver={(e) => {
-                    if (e.dataTransfer.types.includes('Files')) e.preventDefault()
-                  }}
-                  onDrop={(e) => {
-                    if (!e.dataTransfer.files.length) return
-                    e.preventDefault()
-                    void pegarImagenes(Array.from(e.dataTransfer.files))
-                  }}
+              <Suspense fallback={<p className="manuscrita suave cuaderno__cargando-editor">sacando el lápiz…</p>}>
+                <EditorNota
+                  key={seleccion ?? 'nueva'}
+                  ref={editorRef}
+                  inicial={borrador.contenido}
+                  urls={urls}
+                  densidad={borrador.densidad}
+                  onDensidad={(densidad) => setBorrador((b) => (b ? { ...b, densidad } : b))}
+                  onCambio={(contenido) => setBorrador((b) => (b ? { ...b, contenido } : b))}
+                  onImagenes={(archivos) => void pegarImagenes(archivos)}
                 />
-              </div>
+              </Suspense>
+              {subiendo > 0 && (
+                <p className="cuaderno__subiendo datos" aria-live="polite">
+                  pegando imagen…
+                </p>
               )}
-              {(() => {
-                const fotos = fotosEnVista(borrador.contenido, borrador.fotos)
-                if (!fotos.length && !subiendo) return null
-                return (
-                  <ul className="lista-limpia cuaderno__miniaturas" aria-label="Imágenes de esta hoja">
-                    {fotos.map((f) => (
-                      <li key={f.n}>
-                        {urls[f.id] ? <img src={urls[f.id]} alt="" /> : <span className="datos">imagen</span>}
-                        <span className="cuaderno__numero datos">{f.n}</span>
-                        <button type="button" aria-label={`Quitar la imagen ${f.n} de la hoja`} title="quitar" onClick={() => quitarDelBorrador(f.n)}>
-                          ✕
-                        </button>
-                      </li>
-                    ))}
-                    {subiendo > 0 && (
-                      <li className="cuaderno__subiendo datos" aria-live="polite">
-                        pegando…
-                      </li>
-                    )}
-                  </ul>
-                )
-              })()}
               <div className="cuaderno__acciones">
                 <button type="button" className="btn-mano" disabled={guardando || subiendo > 0} onClick={() => void guardar()}>
                   {guardando ? 'guardando…' : subiendo > 0 ? 'pegando imagen…' : 'guardar'}

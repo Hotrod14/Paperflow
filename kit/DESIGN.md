@@ -65,6 +65,7 @@ Contraste mínimo **AA** (4,5:1 en texto, 3:1 en bordes de controles) en todas l
 | **Menú de perfil** | Avatar con la inicial → popover en *portal* (para que no lo recorte el papel rotado): Perfil · Tema (claro/oscuro) · Ajustes (fondos con muestra). |
 | **Semana** | Columna de tarjetas por contenedor (✅ cerradas · 📌 quedan · 💤 sin cierres), lista lateral para elegir qué va al guion y **Guion oral** al final, con jerarquía numerada. |
 | **Cuaderno** | Índice en ficha (buscador, chips de proyecto, lista con 📌 fijadas) bajo el menú en escritorio. Hoja abierta con **espiral** de 16 anillos metálicos, **margen rojo** y **renglones azules** de 32 px. Menú `···` (editar, fijar, arrancar hoja con confirmación). Editor con título, chips de proyecto y área que crece con el texto. |
+| **Editor del cuaderno** | Editor visual (TipTap) que se ve igual que la hoja leída: barra fija con jerarquía, énfasis, 6 tintas, listas, casillas, destacado, separador y densidad de renglones; menú flotante al seleccionar. Guarda texto con marcas legibles en Notion. |
 | **Foto pegada** | Marco claro de 8 px, inclinado ±0,8° y con una **cinta** translúcida arriba. Su alto se redondea a renglones completos para que el texto siguiente caiga sobre las líneas. Clic → **visor** a pantalla completa (Esc o clic fuera para cerrar). |
 
 ## 6. Movimiento
